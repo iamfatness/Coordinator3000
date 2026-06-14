@@ -53,7 +53,7 @@ by `thread_id`.
 ```
 Coordinator3000/
 ├── app/
-│   ├── main.py                 # FastAPI app: webhook endpoint + worker lifecycle
+│   ├── main.py                 # FastAPI app: dashboard + webhook + worker lifecycle
 │   ├── config.py               # Pydantic settings (all env config lives here)
 │   ├── logging_config.py       # Structured logging, per-run id tagging
 │   ├── models.py               # Job / RunContext dataclasses
@@ -75,9 +75,13 @@ Coordinator3000/
 │   │   └── github_tools.py     # GitHub REST client (issues, PRs, comments)
 │   ├── webhooks/
 │   │   └── github.py           # HMAC verification + issue-event parsing
-│   └── worker/
-│       ├── queue.py            # In-process async job queue + worker pool
-│       └── runner.py           # Per-run lifecycle (clone → graph → cleanup)
+│   ├── worker/
+│   │   ├── queue.py            # In-process async job queue + worker pool
+│   │   └── runner.py           # Per-run lifecycle (clone → graph → cleanup)
+│   ├── store/
+│   │   └── runs.py             # Postgres-backed run registry (powers the UI)
+│   └── web/
+│       └── index.html          # Management dashboard (served by FastAPI)
 ├── scripts/
 │   └── init_db.py              # Create LangGraph checkpoint tables
 ├── tests/                      # Webhook + path-guard unit tests (offline)
@@ -116,6 +120,22 @@ docker compose up --build
 
 This starts Postgres and the app on `http://localhost:8000`. The app creates its
 checkpoint tables automatically on boot. Health check: `GET /healthz`.
+
+### Management UI
+
+Open `http://localhost:8000/` for a built-in dashboard (served by the same
+FastAPI app — no separate frontend build):
+
+* **Start a run** — kick off an autonomous run for any `owner/repo/issue` with no
+  webhook or label required (great for the first live run / one-offs).
+* **Runs table** — live status of every run (status, phase, iteration count, PR
+  link), auto-refreshing; click a row to expand the plan, coder report, and
+  review.
+* **Configuration** — the active per-agent models, trigger label, iteration cap,
+  and approval mode at a glance.
+
+Backing API (JSON): `GET /api/runs`, `GET /api/runs/{id}`, `POST /api/runs`
+(`{owner, repo, issue_number}`), `GET /api/info`.
 
 ## Local development
 
