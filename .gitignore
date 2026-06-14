@@ -1,0 +1,29 @@
+# Secrets / local config
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Runtime
+*.log
+/tmp/
+coordinator-workspaces/
+workspaces/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store

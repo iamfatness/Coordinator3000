@@ -1,0 +1,33 @@
+# ---- Web / API layer ----
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+python-multipart>=0.0.9
+
+# ---- Orchestration (LangGraph + Postgres checkpointing) ----
+langgraph>=0.2.60,<0.4
+langgraph-checkpoint-postgres>=2.0.0,<3.0
+langgraph-prebuilt>=0.1.0; python_version >= "3.10"
+
+# ---- LLM (Anthropic Claude via the official LangChain integration) ----
+langchain-anthropic>=0.3.0,<0.4
+langchain-core>=0.3.0,<0.4
+# Optional providers — uncomment to run agents on Codex (OpenAI) or Grok (xAI).
+# These are imported lazily; a Claude-only deployment doesn't need them.
+# langchain-openai>=0.2,<0.4
+# langchain-xai>=0.2,<0.4
+
+# ---- Postgres driver used by the checkpointer ----
+psycopg[binary,pool]>=3.2,<4.0
+
+# ---- Config / validation ----
+pydantic>=2.7,<3.0
+pydantic-settings>=2.3,<3.0
+
+# ---- HTTP client for the GitHub REST API ----
+httpx>=0.27,<1.0
+
+# ---- Resilience: retries with exponential backoff ----
+tenacity>=8.3,<10.0
+
+# ---- Local dev convenience ----
+python-dotenv>=1.0,<2.0
