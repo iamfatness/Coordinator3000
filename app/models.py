@@ -17,6 +17,7 @@ class Job:
     base_branch: str
     clone_url: str
     delivery_id: str = ""
+    trigger: str = "webhook"  # "webhook" | "manual"
 
     @property
     def full_name(self) -> str:

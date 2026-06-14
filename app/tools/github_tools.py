@@ -90,6 +90,11 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
+    def get_repo(self) -> dict:
+        resp = self._request("GET", f"/repos/{self.owner}/{self.repo}")
+        resp.raise_for_status()
+        return resp.json()
+
     # ---- Pull requests ------------------------------------------------------
     def create_pull_request(
         self, *, title: str, head: str, base: str, body: str, draft: bool = False

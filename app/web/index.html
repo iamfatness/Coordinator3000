@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coordinator3000</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --txt: #e6e8ec; --muted: #9aa3b2; --accent: #6ea8fe; --accent2: #8b5cf6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--txt);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header h1 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .card h2 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+  input {
+    width: 100%; padding: 9px 10px; background: var(--panel2); color: var(--txt);
+    border: 1px solid var(--line); border-radius: 7px; font-size: 14px;
+  }
+  .row3 { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 10px; }
+  button {
+    margin-top: 12px; padding: 9px 16px; background: var(--accent); color: #08111f;
+    border: 0; border-radius: 7px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: default; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv b { color: var(--muted); font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  tr.run { cursor: pointer; }
+  tr.run:hover td { background: var(--panel2); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .b-running { background: #14305c; color: #9ec5ff; }
+  .b-completed { background: #103a26; color: #74e2a8; }
+  .b-needs_human { background: #4a3a10; color: #f2c879; }
+  .b-failed { background: #4a1620; color: #ff9aa9; }
+  .b-aborted, .b-queued { background: #2a2f3a; color: var(--muted); }
+  a { color: var(--accent); }
+  .detail { background: var(--panel2); }
+  .detail pre { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; font-size: 12px; color: #cdd3dd; }
+  .detail h4 { margin: 12px 0 2px; font-size: 12px; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .toast { position: fixed; bottom: 16px; right: 16px; background: var(--panel2); border: 1px solid var(--line);
+           padding: 10px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coordinator3000 <small id="ver"></small></h1>
+  <div class="muted" id="clock"></div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+    <div class="card">
+      <h2>Start a run</h2>
+      <p class="muted" style="margin:0 0 6px">Kick off an autonomous run for an existing issue — no webhook or label needed.</p>
+      <div class="row3">
+        <div><label>Owner</label><input id="owner" placeholder="iamfatness" /></div>
+        <div><label>Repo</label><input id="repo" placeholder="Coordinator3000" /></div>
+        <div><label>Issue #</label><input id="issue" type="number" placeholder="7" /></div>
+      </div>
+      <button id="trigger">Run agents</button>
+    </div>
+
+    <div class="card">
+      <h2>Configuration</h2>
+      <div class="kv" id="cfg"><span class="muted">loading…</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>Runs</h2>
+    <table>
+      <thead>
+        <tr><th>Status</th><th>Issue</th><th>Phase</th><th>Iter</th><th>PR</th><th>Trigger</th><th>Updated</th></tr>
+      </thead>
+      <tbody id="runs"><tr><td colspan="7" class="muted">loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let expanded = null;
+
+function badge(status) {
+  return `<span class="badge b-${status || 'queued'}">${status || 'queued'}</span>`;
+}
+function fmt(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function esc(s) {
+  return (s ?? '').toString().replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function loadInfo() {
+  try {
+    const r = await fetch('/api/info'); const c = await r.json();
+    $('ver').textContent = 'v' + c.version;
+    $('cfg').innerHTML = `
+      <b>Trigger label</b><span>${esc(c.trigger_label)}</span>
+      <b>Orchestrator</b><span>${esc(c.orchestrator_model)}</span>
+      <b>Coder</b><span>${esc(c.coder_model)}</span>
+      <b>Reviewer</b><span>${esc(c.reviewer_model)}</span>
+      <b>Max iterations</b><span>${c.max_iterations}</span>
+      <b>Human approval</b><span>${c.require_human_approval ? 'required (draft PRs)' : 'off (autonomous)'}</span>
+      <b>Workers</b><span>${c.worker_concurrency}</span>`;
+  } catch (e) { /* ignore */ }
+}
+
+async function loadRuns() {
+  let runs = [];
+  try { runs = await (await fetch('/api/runs')).json(); } catch (e) { return; }
+  const tb = $('runs');
+  if (!runs.length) { tb.innerHTML = '<tr><td colspan="7" class="muted">No runs yet.</td></tr>'; return; }
+  tb.innerHTML = runs.map(r => {
+    const pr = r.pr_url ? `<a href="${esc(r.pr_url)}" target="_blank">PR ↗</a>` : '—';
+    return `<tr class="run" data-id="${esc(r.run_id)}">
+      <td>${badge(r.status)}</td>
+      <td><b>${esc(r.owner)}/${esc(r.repo)}#${r.issue_number}</b><br><span class="muted">${esc(r.issue_title || '')}</span></td>
+      <td>${esc(r.phase || '—')}</td>
+      <td>${r.iterations ?? 0}</td>
+      <td>${pr}</td>
+      <td class="muted">${esc(r.trigger)}</td>
+      <td class="muted">${fmt(r.updated_at)}</td>
+    </tr>` + (expanded === r.run_id ? `<tr class="detail" data-detail="${esc(r.run_id)}"><td colspan="7" class="muted">loading…</td></tr>` : '');
+  }).join('');
+  document.querySelectorAll('tr.run').forEach(tr => tr.onclick = () => toggle(tr.dataset.id));
+  if (expanded) renderDetail(expanded);
+}
+
+function toggle(id) { expanded = (expanded === id) ? null : id; loadRuns(); }
+
+async function renderDetail(id) {
+  const cell = document.querySelector(`tr[data-detail="${CSS.escape(id)}"] td`);
+  if (!cell) return;
+  try {
+    const r = await (await fetch('/api/runs/' + id)).json();
+    cell.innerHTML = `
+      <div class="kv">
+        <b>Run</b><span>${esc(r.run_id)} · branch <code>${esc(r.branch || '—')}</code></span>
+        <b>Review</b><span>${r.review_passed === true ? '✅ passed' : r.review_passed === false ? '⚠️ not passed' : '—'}</span>
+      </div>
+      ${r.plan ? `<h4>Plan</h4><pre>${esc(r.plan)}</pre>` : ''}
+      ${r.coder_report ? `<h4>Coder report</h4><pre>${esc(r.coder_report)}</pre>` : ''}
+      ${r.review_report ? `<h4>Review</h4><pre>${esc(r.review_report)}</pre>` : ''}
+      ${r.error ? `<h4>Error</h4><pre>${esc(r.error)}</pre>` : ''}`;
+  } catch (e) { cell.textContent = 'failed to load detail'; }
+}
+
+$('trigger').onclick = async () => {
+  const owner = $('owner').value.trim(), repo = $('repo').value.trim(), issue = parseInt($('issue').value, 10);
+  if (!owner || !repo || !issue) { toast('Fill owner, repo and issue #'); return; }
+  const btn = $('trigger'); btn.disabled = true;
+  try {
+    const r = await fetch('/api/runs', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ owner, repo, issue_number: issue }),
+    });
+    const data = await r.json();
+    if (r.ok) { toast('Started run ' + data.run_id); loadRuns(); }
+    else { toast('Error: ' + (data.detail || r.status)); }
+  } catch (e) { toast('Request failed'); }
+  finally { btn.disabled = false; }
+};
+
+setInterval(() => $('clock').textContent = new Date().toLocaleTimeString(), 1000);
+loadInfo(); loadRuns();
+setInterval(loadRuns, 4000);
+</script>
+</body>
+</html>
