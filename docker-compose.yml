@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: coordinator
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d coordinator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Point the checkpointer at the compose Postgres service.
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/coordinator
+      # Everything else is read from your .env (secrets, model, etc.).
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - workspaces:/data/workspaces
+
+volumes:
+  pgdata:
+  workspaces:
