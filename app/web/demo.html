@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coordinator3000 — Demo</title>
+<style>
+  :root{
+    --bg:#0d0f14; --bg2:#11141b; --panel:#171b24; --panel2:#1d2230; --line:#272d3a;
+    --txt:#e7e9ee; --muted:#919bad; --dim:#6b7486;
+    --accent:#6ea8fe; --green:#48d597; --amber:#f2c065; --red:#ff7a8a; --violet:#a98bff;
+    --claude:#c08bff; --grok:#5db4ff; --codex:#5fdd9d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:14px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .demo-flag{background:linear-gradient(90deg,#3b2d5e,#2a3a5e);color:#dfe4ff;text-align:center;
+    font-size:12px;padding:6px;border-bottom:1px solid var(--line)}
+  .demo-flag b{color:#fff}
+  header{display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--violet))}
+  .brand h1{font-size:16px;margin:0;letter-spacing:.3px}
+  .brand small{color:var(--muted);font-weight:400}
+  .pill{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle;
+    box-shadow:0 0 0 3px rgba(72,213,151,.15)}
+  .wrap{max-width:1240px;margin:0 auto;padding:22px 24px 60px}
+  .metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px}
+  @media(max-width:980px){.metrics{grid-template-columns:repeat(3,1fr)}}
+  .metric{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:13px 14px}
+  .metric .v{font-size:21px;font-weight:700}
+  .metric .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+  .metric .s{font-size:11px;margin-top:4px}
+  .up{color:var(--green)} .down{color:var(--red)}
+  .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);cursor:pointer}
+  .chip.active{background:var(--panel2);color:#cfe0ff;border-color:var(--accent)}
+  .search{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 11px;color:var(--txt);
+    font-size:13px;min-width:200px}
+  .btn{border:0;border-radius:8px;padding:8px 15px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn-primary{background:var(--accent);color:#08111f}
+  .btn-ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+  th{color:var(--muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px;background:var(--bg2)}
+  tr.run{cursor:pointer}
+  tr.run:hover td{background:var(--panel2)}
+  tr:last-child td{border-bottom:0}
+  .issue b{font-weight:600}
+  .issue .sub{color:var(--dim);font-size:12px}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+  .b-running{background:#13294d;color:#9ec5ff} .b-completed{background:#0f3526;color:#74e2a8}
+  .b-needs_human{background:#43360f;color:#f2c879} .b-failed{background:#41141d;color:#ff9aa9}
+  .b-queued{background:#23283400;border:1px solid var(--line);color:var(--muted)}
+  .b-aborted{background:#23283a;color:var(--muted)}
+  .stepper{display:flex;align-items:center;gap:0}
+  .step{display:flex;align-items:center;gap:6px}
+  .step .ic{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:10px;
+    border:1.5px solid var(--line);color:var(--dim)}
+  .step.done .ic{background:var(--green);border-color:var(--green);color:#06291b}
+  .step.active .ic{border-color:var(--accent);color:var(--accent);animation:pulse 1.4s infinite}
+  .step .nm{font-size:11px;color:var(--dim)}
+  .step.done .nm{color:var(--muted)} .step.active .nm{color:#cfe0ff}
+  .seg{width:22px;height:1.5px;background:var(--line);margin:0 4px}
+  .seg.done{background:var(--green)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(110,168,254,.4)}50%{box-shadow:0 0 0 4px rgba(110,168,254,0)}}
+  .mbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.3px}
+  .m-claude{background:rgba(192,139,255,.16);color:var(--claude)}
+  .m-grok{background:rgba(93,180,255,.16);color:var(--grok)}
+  .m-codex{background:rgba(95,221,157,.16);color:var(--codex)}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  /* drawer */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.2s}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:560px;max-width:94vw;background:var(--panel);
+    border-left:1px solid var(--line);transform:translateX(100%);transition:.25s;z-index:10;display:flex;flex-direction:column}
+  .drawer.show{transform:none}
+  .dh{padding:16px 18px;border-bottom:1px solid var(--line)}
+  .dh .x{float:right;cursor:pointer;color:var(--muted);font-size:18px}
+  .dh h3{margin:0 0 4px;font-size:15px}
+  .dh .meta{color:var(--dim);font-size:12px}
+  .tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  .tab{padding:11px 13px;font-size:12px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+  .tab.active{color:var(--txt);border-color:var(--accent)}
+  .dbody{padding:18px;overflow:auto;flex:1}
+  .dbody h4{margin:16px 0 6px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .dbody h4:first-child{margin-top:0}
+  pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    padding:11px;font-size:12px;color:#cdd3dd;margin:0;overflow:auto}
+  .diff .add{color:#74e2a8} .diff .del{color:#ff9aa9} .diff .ctx{color:var(--dim)}
+  .tl{position:relative;margin:0;padding:0 0 0 18px;list-style:none}
+  .tl:before{content:"";position:absolute;left:5px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl li{position:relative;padding:0 0 14px 6px}
+  .tl li:before{content:"";position:absolute;left:-16px;top:5px;width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  .tl .who{font-weight:600;font-size:12px} .tl .ts{color:var(--dim);font-size:11px;margin-left:6px}
+  .tl .what{color:var(--muted);font-size:12px}
+  .ctrls{display:flex;gap:8px;margin-top:8px}
+  .ctrls .btn{font-size:12px;padding:6px 11px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13px}
+  .kv b{color:var(--muted);font-weight:500}
+  /* modal */
+  .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.55);z-index:20}
+  .modal.show{display:grid}
+  .mbox{background:var(--panel);border:1px solid var(--line);border-radius:13px;width:460px;max-width:94vw;padding:18px}
+  .mbox h3{margin:0 0 12px;font-size:15px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:9px 10px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;font-size:13px}
+  .row3{display:grid;grid-template-columns:2fr 2fr 1fr;gap:10px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .mfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  .muted{color:var(--muted)} .small{font-size:12px}
+</style>
+</head>
+<body>
+<div class="demo-flag">🎛️ <b>Demo preview</b> — static mock data, no backend. Use this to react to the layout &amp; feature set.</div>
+
+<header>
+  <div class="brand">
+    <div class="logo"></div>
+    <h1>Coordinator3000 <small>· orchestration console</small></h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="pill"><span class="dot"></span>2 workers online</span>
+    <span class="pill">label: ai-task</span>
+    <button class="btn btn-primary" onclick="openModal()">+ New run</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="metrics" id="metrics"></div>
+
+  <div class="toolbar">
+    <div class="chips" id="chips"></div>
+    <input class="search" id="search" placeholder="Search repo, issue, title…" oninput="render()" />
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Status</th><th>Issue</th><th>Pipeline</th><th>Agents</th><th>Iter</th><th>Duration</th><th>PR</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="muted small" style="margin-top:10px">Showing <span id="count"></span> runs · auto-refresh every 4s (live), click a row for full detail.</p>
+</div>
+
+<!-- detail drawer -->
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <span class="x" onclick="closeDrawer()">✕</span>
+    <h3 id="d-title">—</h3>
+    <div class="meta" id="d-meta">—</div>
+    <div class="ctrls" id="d-ctrls"></div>
+  </div>
+  <div class="tabs" id="d-tabs"></div>
+  <div class="dbody" id="d-body"></div>
+</aside>
+
+<!-- new run modal -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3>Start an autonomous run</h3>
+    <p class="muted small" style="margin:0 0 6px">Triggers immediately — no GitHub label or webhook required.</p>
+    <div class="row3">
+      <div><label>Owner</label><input value="iamfatness" /></div>
+      <div><label>Repo</label><input value="CoreVideo" /></div>
+      <div><label>Issue #</label><input value="151" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Coder model</label>
+        <select><option>openai:gpt-5-codex (Codex)</option><option>anthropic:claude-opus-4-8 (Claude)</option><option>xai:grok-4 (Grok)</option></select></div>
+      <div><label>Reviewer model</label>
+        <select><option>anthropic:claude-opus-4-8 (Claude)</option><option>xai:grok-4 (Grok)</option></select></div>
+    </div>
+    <label style="margin-top:12px"><input type="checkbox" style="width:auto;margin-right:6px" />Open PR as draft (require human approval)</label>
+    <div class="mfoot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="fakeStart()">Run agents</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const RUNS = [
+  { id:"a91f3c0e", owner:"iamfatness", repo:"CoreVideo", issue:142, title:"Add HLS output toggle to the streaming panel",
+    status:"completed", phase:"finalize", iter:2, duration:"6m 12s", trigger:"webhook",
+    coder:"claude", reviewer:"claude", review_passed:true, pr:"#218", pr_url:"#",
+    steps:["done","done","done","done"],
+    plan:"Add an `hls_enabled` flag to the output config, surface a toggle in the streaming panel, thread it through the native-core command, and cover it with a renderer + native test.",
+    changes:"4 files changed (+118 −9): src/output/config.ts, src/panels/StreamingPanel.tsx, native-core/commands.ts, tests/output.test.ts. Added HLS toggle wired through the typed command boundary; all 37 tests green.",
+    diff:[["ctx"," src/panels/StreamingPanel.tsx"],["add","+ <Toggle label=\"HLS output\" checked={cfg.hlsEnabled}"],["add","+   onChange={v => send({type:'set_hls', enabled:v})} />"],["ctx","  src/output/config.ts"],["add","+ hlsEnabled: boolean;"]],
+    review:"✅ Approved. Toggle is correctly debounced, the native command is covered, and the snapshot round-trips. Matches existing panel conventions.",
+    required:"",
+    timeline:[
+      ["Orchestrator","23:41:02","Planned 4-step change; routed to Coder"],
+      ["Coder","23:41:48","Read 6 files, edited 4, ran `npm test` → 37 passed"],
+      ["Coder","23:43:10","Committed: feat(output): add HLS toggle"],
+      ["Orchestrator","23:43:12","Routed to Reviewer"],
+      ["Reviewer","23:44:30","Ran tests + lint, inspected diff → approved"],
+      ["Finalize","23:45:01","Pushed branch, opened PR #218, commented on issue"]],
+    logs:"INFO clone iamfatness/CoreVideo (main)\nINFO branch ai-task/issue-142-add-hls-output-toggle\nINFO coder: npm test → 37 passed\nINFO reviewer: verdict approved\nINFO opened PR #218 (draft=false)" },
+
+  { id:"7d2b14aa", owner:"iamfatness", repo:"resonance", issue:88, title:"Fix audio buffer underrun on device switch",
+    status:"running", phase:"code", iter:1, duration:"2m 03s", trigger:"manual",
+    coder:"grok", reviewer:"claude", review_passed:null, pr:null, pr_url:null,
+    steps:["done","active","todo","todo"],
+    plan:"Reproduce the underrun on output-device change, add a ring-buffer prefill on the audio engine restart path, and add a regression test around the device-switch transition.",
+    changes:"In progress — Coder is editing engine/audio_stream.cpp and running the test harness.",
+    diff:[["ctx"," engine/audio_stream.cpp"],["del","- restart_stream();"],["add","+ prefill_ring_buffer();"],["add","+ restart_stream();"]],
+    review:"—", required:"",
+    timeline:[
+      ["Orchestrator","01:03:40","Planned 3-step fix; routed to Coder"],
+      ["Coder","01:04:18","Reproduced underrun via test harness"],
+      ["Coder","01:05:02","Editing engine/audio_stream.cpp …"]],
+    logs:"INFO clone iamfatness/resonance (main)\nINFO branch ai-task/issue-88-fix-audio-buffer-underrun\nINFO coder: running device-switch repro …" },
+
+  { id:"c5e9f7b1", owner:"iamfatness", repo:"CoreVideoPro", issue:57, title:"Wire chroma key strength into the native core",
+    status:"needs_human", phase:"finalize", iter:4, duration:"11m 49s", trigger:"webhook",
+    coder:"claude", reviewer:"claude", review_passed:false, pr:"#94 (draft)", pr_url:"#",
+    steps:["done","done","done","done"],
+    plan:"Thread a `chromaStrength` float through the renderer→native-core command/snapshot protocol with a paired test at each layer.",
+    changes:"6 files changed (+204 −21). Renderer + command wired; native model added. One snapshot test still failing on clamp bounds after 4 iterations.",
+    diff:[["ctx"," native-core/chroma.ts"],["add","+ clampStrength(v) { return Math.min(1, Math.max(0, v)); }"],["del","- this.strength = v;"],["add","+ this.strength = clampStrength(v);"]],
+    review:"⚠️ Not approved after 4 iterations. Clamp logic added but `chroma.snapshot.test.ts` still fails at the upper bound (1.0 maps to 0.99). Opened as a draft for a human to finish.",
+    required:"Fix the off-by-epsilon in the snapshot serializer so strength=1.0 round-trips exactly.",
+    timeline:[
+      ["Orchestrator","00:50:10","Planned; routed to Coder"],
+      ["Coder","00:52:31","Wired command + snapshot (iter 1)"],
+      ["Reviewer","00:54:02","Rejected: missing clamp"],
+      ["Coder","00:57:20","Added clamp (iter 2-4)"],
+      ["Reviewer","01:00:55","Still failing upper-bound test"],
+      ["Finalize","01:01:59","Max iterations hit → opened draft PR #94 for human"]],
+    logs:"WARN reviewer: chroma.snapshot.test.ts FAILED (1.0 → 0.99)\nINFO max iterations (4) reached -> finalize\nINFO opened PR #94 (draft=true)" },
+
+  { id:"e0aa28d4", owner:"iamfatness", repo:"IamfatnessWebsite", issue:12, title:"Migrate site worker to new wrangler config",
+    status:"failed", phase:"code", iter:1, duration:"0m 51s", trigger:"manual",
+    coder:"codex", reviewer:"claude", review_passed:null, pr:null, pr_url:null,
+    steps:["done","active","todo","todo"],
+    plan:"Update wrangler.jsonc to the v4 schema and adjust the worker entrypoint.",
+    changes:"Run failed before completing.",
+    diff:[],
+    review:"—",
+    required:"",
+    timeline:[
+      ["Orchestrator","23:12:01","Planned; routed to Coder"],
+      ["Coder","23:12:40","npm install failed: registry timeout"],
+      ["System","23:12:52","Run errored — posted failure comment to issue #12"]],
+    logs:"ERROR sandbox: npm install exited 1 (ETIMEDOUT registry.npmjs.org)\nERROR run e0aa28d4 failed\nINFO posted failure comment to issue #12" },
+
+  { id:"b3140a9c", owner:"iamfatness", repo:"Coordinator3000", issue:3, title:"Add GET /version endpoint returning app version",
+    status:"completed", phase:"finalize", iter:1, duration:"3m 27s", trigger:"manual",
+    coder:"codex", reviewer:"grok", review_passed:true, pr:"#4", pr_url:"#",
+    steps:["done","done","done","done"],
+    plan:"Add a small FastAPI route returning {version}. One file, one test.",
+    changes:"2 files changed (+14): app/main.py (new /version route), tests/test_version.py. Test passes.",
+    diff:[["ctx"," app/main.py"],["add","+ @app.get('/version')"],["add","+ async def version(): return {'version': __version__}"]],
+    review:"✅ Approved. Minimal, matches existing route style, test covers it.",
+    required:"",
+    timeline:[
+      ["Orchestrator","00:31:05","Planned 1-step change; routed to Coder"],
+      ["Coder","00:32:10","Added route + test, pytest green"],
+      ["Reviewer","00:33:40","Approved"],
+      ["Finalize","00:34:32","Opened PR #4"]],
+    logs:"INFO coder: pytest → 1 passed\nINFO reviewer(grok): approved\nINFO opened PR #4 (draft=false)" },
+
+  { id:"f8c61d22", owner:"iamfatness", repo:"CoreVideo", issue:150, title:"Add SRT ingest source",
+    status:"queued", phase:null, iter:0, duration:"—", trigger:"webhook",
+    coder:"claude", reviewer:"claude", review_passed:null, pr:null, pr_url:null,
+    steps:["todo","todo","todo","todo"],
+    plan:"—", changes:"Waiting for an available worker.", diff:[], review:"—", required:"",
+    timeline:[["Queue","01:05:00","Queued behind 1 running job"]],
+    logs:"INFO enqueued run f8c61d22 for iamfatness/CoreVideo#150" },
+];
+
+const METRICS = [
+  {v:"1", l:"Active runs", s:"<span class='muted'>1 queued</span>"},
+  {v:"3", l:"Completed · 24h", s:"<span class='up'>▲ 2 vs prev</span>"},
+  {v:"4", l:"PRs opened", s:"<span class='muted'>1 draft</span>"},
+  {v:"75%", l:"Auto-merge rate", s:"<span class='down'>▼ review caught 1</span>"},
+  {v:"2.2", l:"Avg iterations", s:"<span class='muted'>coder↔reviewer</span>"},
+  {v:"$14.20", l:"LLM spend · 24h", s:"<span class='muted'>1.84M tokens</span>"},
+];
+
+const STEP_NAMES = ["Plan","Code","Review","PR"];
+const MODEL_LABEL = {claude:"Claude", grok:"Grok", codex:"Codex"};
+let filter = "all", openId = null, tab = "Overview";
+
+function mbadge(m){ return `<span class="mbadge m-${m}">${MODEL_LABEL[m]||m}</span>`; }
+function badge(s){ return `<span class="badge b-${s}">${s.replace('_',' ')}</span>`; }
+function esc(s){ return (s??'').toString().replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function stepper(steps){
+  let h='<div class="stepper">';
+  steps.forEach((st,i)=>{
+    const cls = st==='done'?'done':st==='active'?'active':'';
+    const ic = st==='done'?'✓':(i+1);
+    h+=`<div class="step ${cls}"><span class="ic">${ic}</span><span class="nm">${STEP_NAMES[i]}</span></div>`;
+    if(i<steps.length-1) h+=`<span class="seg ${st==='done'?'done':''}"></span>`;
+  });
+  return h+'</div>';
+}
+
+function renderMetrics(){
+  document.getElementById('metrics').innerHTML = METRICS.map(m=>
+    `<div class="metric"><div class="v">${m.v}</div><div class="l">${m.l}</div><div class="s">${m.s}</div></div>`).join('');
+}
+function renderChips(){
+  const counts = {all:RUNS.length}; RUNS.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
+  const defs=[["all","All"],["running","Running"],["queued","Queued"],["completed","Completed"],["needs_human","Needs human"],["failed","Failed"]];
+  document.getElementById('chips').innerHTML = defs.map(([k,lbl])=>
+    `<div class="chip ${filter===k?'active':''}" onclick="setFilter('${k}')">${lbl} <span class="muted">${counts[k]||0}</span></div>`).join('');
+}
+function setFilter(f){ filter=f; render(); }
+
+function render(){
+  renderChips();
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const list=RUNS.filter(r=>(filter==='all'||r.status===filter) &&
+    (!q || (`${r.owner}/${r.repo}#${r.issue} ${r.title}`).toLowerCase().includes(q)));
+  document.getElementById('count').textContent=list.length;
+  document.getElementById('rows').innerHTML = list.map(r=>`
+    <tr class="run" onclick="openDrawer('${r.id}')">
+      <td>${badge(r.status)}</td>
+      <td class="issue"><b>${r.owner}/${r.repo}#${r.issue}</b><div class="sub">${esc(r.title)}</div></td>
+      <td>${stepper(r.steps)}</td>
+      <td>${mbadge(r.coder)} <span class="muted small">→</span> ${mbadge(r.reviewer)}</td>
+      <td>${r.iter}</td>
+      <td class="muted">${r.duration}</td>
+      <td>${r.pr?`<a href="${r.pr_url}">${esc(r.pr)}</a>`:'<span class="muted">—</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="7" class="muted" style="padding:24px">No runs match.</td></tr>`;
+}
+
+const TABS=["Overview","Timeline","Changes","Review","Logs"];
+function openDrawer(id){ openId=id; tab="Overview"; paintDrawer(); document.getElementById('drawer').classList.add('show'); document.getElementById('scrim').classList.add('show'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('show'); document.getElementById('scrim').classList.remove('show'); }
+function setTab(t){ tab=t; paintDrawer(); }
+
+function paintDrawer(){
+  const r=RUNS.find(x=>x.id===openId); if(!r) return;
+  document.getElementById('d-title').innerHTML=`${badge(r.status)} &nbsp;${r.owner}/${r.repo}#${r.issue}`;
+  document.getElementById('d-meta').textContent=r.title;
+  const ctrls=[];
+  if(r.status==='running') ctrls.push(`<button class="btn btn-ghost">⏹ Cancel</button>`);
+  if(r.status==='failed'||r.status==='needs_human') ctrls.push(`<button class="btn btn-ghost">↻ Retry</button>`);
+  if(r.pr) ctrls.push(`<button class="btn btn-ghost">↗ Open PR</button>`);
+  ctrls.push(`<button class="btn btn-ghost">🐙 View issue</button>`);
+  document.getElementById('d-ctrls').innerHTML=ctrls.join('');
+  document.getElementById('d-tabs').innerHTML=TABS.map(t=>`<div class="tab ${tab===t?'active':''}" onclick="setTab('${t}')">${t}</div>`).join('');
+  document.getElementById('d-body').innerHTML=bodyFor(r,tab);
+}
+function bodyFor(r,t){
+  if(t==="Overview") return `
+    <div class="kv">
+      <b>Run id</b><span>${r.id}</span>
+      <b>Branch</b><span><code>ai-task/issue-${r.issue}-…</code></span>
+      <b>Trigger</b><span>${r.trigger}</span>
+      <b>Models</b><span>${mbadge(r.coder)} coder · ${mbadge(r.reviewer)} reviewer</span>
+      <b>Iterations</b><span>${r.iter} / 4</span>
+      <b>Review</b><span>${r.review_passed===true?'✅ passed':r.review_passed===false?'⚠️ not passed':'—'}</span>
+    </div>
+    <h4>Plan</h4><pre>${esc(r.plan)}</pre>`;
+  if(t==="Timeline") return `<ul class="tl">${r.timeline.map(([w,ts,what])=>
+    `<li><span class="who">${esc(w)}</span><span class="ts">${ts}</span><div class="what">${esc(what)}</div></li>`).join('')}</ul>`;
+  if(t==="Changes"){
+    const diff=r.diff.length?`<h4>Diff (excerpt)</h4><pre class="diff">${r.diff.map(([k,l])=>`<span class="${k}">${esc(l)}</span>`).join('\n')}</pre>`:'';
+    return `<h4>Coder report</h4><pre>${esc(r.changes)}</pre>${diff}`;
+  }
+  if(t==="Review") return `<h4>Verdict</h4><pre>${esc(r.review)}</pre>${r.required?`<h4>Required changes</h4><pre>${esc(r.required)}</pre>`:''}`;
+  if(t==="Logs") return `<h4>Run log</h4><pre>${esc(r.logs)}</pre>`;
+  return '';
+}
+
+function openModal(){ document.getElementById('modal').classList.add('show'); }
+function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+function fakeStart(){ closeModal(); alert("Demo only — in the live app this POSTs /api/runs and the run appears in the table."); }
+
+renderMetrics(); render();
+</script>
+</body>
+</html>
