@@ -72,6 +72,31 @@ def create_branch(workspace: str, branch: str) -> None:
     log.info("created branch %s", branch)
 
 
+def apply_patch(workspace: str, diff_text: str) -> None:
+    """Apply a unified diff to the workspace and stage it.
+
+    Tries a strict apply, then a 3-way merge fallback. Raises GitError with the
+    git message if the patch doesn't apply, so the caller can hand it back to the
+    agent to fix.
+    """
+    import os
+    import tempfile
+
+    if not diff_text.endswith("\n"):
+        diff_text += "\n"
+    fd, path = tempfile.mkstemp(suffix=".patch", dir=workspace)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(diff_text)
+        try:
+            _git(workspace, "apply", "--whitespace=fix", path)
+        except GitError:
+            _git(workspace, "apply", "--3way", "--whitespace=fix", path)
+        _git(workspace, "add", "-A")
+    finally:
+        os.remove(path)
+
+
 def has_commits(workspace: str, base_branch: str) -> bool:
     """True if the working branch has commits beyond `base_branch`."""
     out = _git(workspace, "rev-list", "--count", f"origin/{base_branch}..HEAD")
@@ -84,6 +109,13 @@ def has_commits(workspace: str, base_branch: str) -> bool:
 def diff(workspace: str, base_branch: str) -> str:
     """Return the diff of the working branch against the base branch."""
     return _git(workspace, "diff", f"origin/{base_branch}...HEAD")
+
+
+def commit_all(workspace: str, message: str) -> str:
+    """Stage everything and commit; return the short SHA."""
+    _git(workspace, "add", "-A")
+    _git(workspace, "commit", "-m", message)
+    return _git(workspace, "rev-parse", "--short", "HEAD").strip()
 
 
 @network_retry()

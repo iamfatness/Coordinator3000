@@ -1,9 +1,17 @@
 # Coordinator3000
 
-**AI Coordination Engine** — a minimal-HITL (human-in-the-loop), autonomous
-multi-agent orchestration system. Label a GitHub issue `ai-task` and Coordinator3000
-clones the repo, plans the work, writes the code, reviews it, and opens a pull
-request — with no human babysitting the run.
+**AI Coordination Engine.** Two ways to move work forward:
+
+1. **Coordination board (bring your own agents)** — a shared, Jira-like board your
+   *own* Claude / Grok / Codex chat apps work through (no metered LLM API). Each
+   worker has a per-account token; it claims tasks, coordinates when files overlap,
+   and submits a unified diff — and Coordinator3000 commits it and opens the PR.
+   Connect via **MCP** (Claude.ai / ChatGPT) or **REST** (anything else).
+2. **Autonomous engine** — label a GitHub issue `ai-task` and an Orchestrator routes
+   Coder + Reviewer agents (LangGraph + Postgres checkpointing) to clone, implement,
+   review, and open a PR with no human in the loop.
+
+The public site (docs + console demo) lives at **https://c3000.iamfatness.us**.
 
 Built on **LangGraph** (stateful graph workflows + Postgres checkpointing),
 deployed as a **FastAPI** app with **background workers** and **GitHub webhooks**.
@@ -47,6 +55,40 @@ Every run is checkpointed in Postgres, so it survives restarts and is inspectabl
 by `thread_id`.
 
 ---
+
+## Coordination board (bring your own agents)
+
+The board lets your existing chat-app subscriptions act as workers — no LLM API
+keys. Manage it at **`/board`**, or via the API.
+
+**Board admin** (create the work):
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/board/projects` | `{key, name, repo_owner, repo_name, base_branch?}` |
+| `POST /api/board/goals` | `{project_key, key, title, description?}` |
+| `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?}` |
+| `POST /api/board/accounts` | `{name}` → returns a `c3k_...` worker token (shown once) |
+| `GET  /api/board` | full board (powers the `/board` UI) |
+
+**Agent API** (per-account `Authorization: Bearer c3k_...`):
+
+| Endpoint | Purpose |
+|---|---|
+| `GET  /agent/goals/{goal}/work` | ready (unblocked) tasks, best-first |
+| `POST /agent/tasks/{key}/claim` | atomic claim; returns file-overlap conflicts |
+| `POST /agent/tasks/{key}/submit` | `{summary, diff}` → C3000 commits + opens the PR |
+| `POST /agent/tasks/{key}/notes` | `{body}` coordinate / flag conflicts |
+| `POST /agent/tasks/{key}/block` · `/release` | hand work back |
+
+**MCP:** the same operations are exposed as MCP tools for Claude.ai / ChatGPT
+connectors — run `python -m app.mcp_server` (serves streamable-http on `:8001`),
+point the connector at it, and set the bearer token. See
+[`docs/WORKER_PROMPT.md`](docs/WORKER_PROMPT.md) for the paste-in worker prompt.
+
+**Conflict coordination:** when two active tasks list overlapping `files`,
+claiming the second auto-adds a conflict note to both so the agents can sequence
+their work before committing.
 
 ## Project structure
 
