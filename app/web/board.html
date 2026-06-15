@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coordinator3000 — Board</title>
+<style>
+  :root{--bg:#0d0f14;--bg2:#11141b;--panel:#171b24;--panel2:#1d2230;--line:#272d3a;
+    --txt:#e7e9ee;--muted:#919bad;--dim:#6b7486;--accent:#6ea8fe;--green:#48d597;--amber:#f2c065;--red:#ff7a8a;--violet:#a98bff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;border-bottom:1px solid var(--line);background:var(--bg2)}
+  header h1{font-size:16px;margin:0}
+  header h1 small{color:var(--muted);font-weight:400}
+  header nav a{color:var(--muted);font-size:13px;margin-left:16px;text-decoration:none}
+  header nav a:hover{color:var(--txt)}
+  .wrap{padding:18px 22px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  select,input{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:13px}
+  .btn{border:0;border-radius:7px;padding:7px 13px;font-weight:600;cursor:pointer;font-size:13px;background:var(--accent);color:#08111f}
+  .btn.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  details.setup{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:16px}
+  details.setup summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px}
+  @media(max-width:900px){.grid4{grid-template-columns:1fr 1fr}}
+  .mini{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:10px}
+  .mini h4{margin:0 0 8px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .mini input{width:100%;margin-bottom:6px}
+  .board{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  @media(max-width:1100px){.board{grid-template-columns:repeat(2,1fr)}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:10px;min-height:120px}
+  .col h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);display:flex;justify-content:space-between}
+  .col h3 span{color:var(--dim)}
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:9px}
+  .card .k{font-size:11px;color:var(--accent);font-weight:700}
+  .card .t{font-size:13px;margin:2px 0 6px}
+  .card .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+  .pri{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .p3{background:var(--red)}.p2{background:var(--amber)}.p1{background:var(--dim)}
+  .who{background:var(--panel2);border-radius:5px;padding:1px 6px}
+  .conf{background:#43360f;color:#f2c879;border-radius:5px;padding:1px 6px;font-weight:600}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+  .toast{position:fixed;bottom:16px;right:16px;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:8px;opacity:0;transition:.2s;max-width:380px;word-break:break-all}
+  .toast.show{opacity:1}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Coordinator3000 <small>· board</small></h1>
+  <nav><a href="/">Runs</a><a href="/board">Board</a><a href="https://github.com/iamfatness/Coordinator3000">GitHub</a></nav>
+</header>
+
+<div class="wrap">
+  <details class="setup">
+    <summary>Setup — create a project, goal, task, or mint an agent token</summary>
+    <div class="grid4">
+      <div class="mini"><h4>Project</h4>
+        <input id="p_key" placeholder="key e.g. CV" /><input id="p_name" placeholder="name" />
+        <input id="p_owner" placeholder="repo owner" /><input id="p_repo" placeholder="repo name" />
+        <button class="btn" data-do="project">Create</button></div>
+      <div class="mini"><h4>Goal</h4>
+        <input id="g_proj" placeholder="project key" /><input id="g_key" placeholder="goal key e.g. CV-G1" />
+        <input id="g_title" placeholder="title" />
+        <button class="btn" data-do="goal">Create</button></div>
+      <div class="mini"><h4>Task</h4>
+        <input id="t_goal" placeholder="goal key" /><input id="t_title" placeholder="title" />
+        <input id="t_files" placeholder="files (comma-sep, for conflicts)" />
+        <button class="btn" data-do="task">Create</button></div>
+      <div class="mini"><h4>Agent token</h4>
+        <input id="a_name" placeholder="worker name e.g. claude-worker" />
+        <button class="btn" data-do="account">Mint token</button>
+        <p class="muted" style="font-size:11px;margin:6px 0 0">Shown once — copy it.</p></div>
+    </div>
+  </details>
+
+  <div class="row">
+    <label class="muted" style="font-size:13px">Goal filter</label>
+    <select id="goalFilter"><option value="">All goals</option></select>
+    <button class="btn ghost" data-do="refresh">Refresh</button>
+    <span class="muted" id="summary" style="font-size:13px"></span>
+  </div>
+
+  <div class="board" id="board"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=(id)=>document.getElementById(id);
+const COLS=[["backlog","Backlog"],["in_progress","In progress"],["in_review","In review"],["blocked","Blocked"],["done","Done"]];
+const esc=(s)=>(s==null?"":String(s)).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let DATA={projects:[],goals:[],tasks:[]};
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),4000);}
+
+async function api(method,path,body){
+  const r=await fetch(path,{method,headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.detail||("HTTP "+r.status));
+  return data;
+}
+
+function conflictSet(tasks){
+  // active tasks sharing any file -> mark conflicting
+  const active=tasks.filter(t=>["claimed","in_progress","in_review"].includes(t.status)&&(t.files||[]).length);
+  const conf=new Set();
+  for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
+    if(active[i].files.some(f=>active[j].files.includes(f))){conf.add(active[i].key);conf.add(active[j].key);}
+  }
+  return conf;
+}
+
+async function load(){
+  try{DATA=await api("GET","/api/board");}catch(e){toast("Load failed: "+e.message);return;}
+  // goal filter options
+  const gf=$("goalFilter");const cur=gf.value;
+  gf.innerHTML='<option value="">All goals</option>'+DATA.goals.map(g=>`<option value="${esc(g.key)}">${esc(g.key)} — ${esc(g.title)}</option>`).join("");
+  gf.value=cur;
+  render();
+}
+
+function render(){
+  const goalKey=$("goalFilter").value;
+  let tasks=DATA.tasks;
+  if(goalKey){const g=DATA.goals.find(x=>x.key===goalKey);tasks=tasks.filter(t=>g&&t.goal_id===g.id);}
+  const conf=conflictSet(DATA.tasks);
+  $("summary").textContent=`${DATA.projects.length} projects · ${DATA.goals.length} goals · ${tasks.length} tasks`;
+  $("board").innerHTML=COLS.map(([st,label])=>{
+    const inCol=tasks.filter(t=>(t.status==="claimed"?"in_progress":t.status)===st);
+    return `<div class="col"><h3>${label} <span>${inCol.length}</span></h3>${inCol.map(card(conf)).join("")||'<p class="muted" style="font-size:12px">—</p>'}</div>`;
+  }).join("");
+}
+
+function card(conf){return (t)=>{
+  const pr=t.pr_url?` · <a href="${esc(t.pr_url)}" target="_blank">PR</a>`:"";
+  const who=t.assignee_name?`<span class="who">${esc(t.assignee_name)}</span>`:"";
+  const c=conf.has(t.key)?`<span class="conf">conflict</span>`:"";
+  return `<div class="card"><div class="k">${esc(t.key)}</div><div class="t">${esc(t.title)}</div>
+    <div class="meta"><span class="pri p${t.priority}"></span>${who}${c}${pr}</div></div>`;
+}}
+
+document.addEventListener("click",async(e)=>{
+  const b=e.target.closest("[data-do]");if(!b)return;
+  const act=b.getAttribute("data-do");
+  try{
+    if(act==="refresh"){await load();return;}
+    if(act==="project"){await api("POST","/api/board/projects",{key:$("p_key").value,name:$("p_name").value,repo_owner:$("p_owner").value,repo_name:$("p_repo").value});toast("Project created");await load();}
+    if(act==="goal"){await api("POST","/api/board/goals",{project_key:$("g_proj").value,key:$("g_key").value,title:$("g_title").value});toast("Goal created");await load();}
+    if(act==="task"){const files=$("t_files").value.split(",").map(s=>s.trim()).filter(Boolean);await api("POST","/api/board/tasks",{goal_key:$("t_goal").value,title:$("t_title").value,files});toast("Task created");await load();}
+    if(act==="account"){const r=await api("POST","/api/board/accounts",{name:$("a_name").value});toast("Token (copy now): "+r.token);}
+  }catch(err){toast("Error: "+err.message);}
+});
+$("goalFilter").addEventListener("change",render);
+
+load();
+setInterval(load,5000);
+</script>
+</body>
+</html>

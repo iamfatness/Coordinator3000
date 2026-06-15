@@ -23,6 +23,9 @@ psycopg[binary,pool]>=3.2,<4.0
 pydantic>=2.7,<3.0
 pydantic-settings>=2.3,<3.0
 
+# ---- MCP server (lets Claude.ai / ChatGPT connectors drive the board) ----
+mcp>=1.2,<2.0
+
 # ---- HTTP client for the GitHub REST API ----
 httpx>=0.27,<1.0
 

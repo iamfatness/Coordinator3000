@@ -25,10 +25,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from app import __version__
+from app.api.admin import router as admin_router
+from app.api.agent import router as agent_router
 from app.config import get_settings
 from app.graph.checkpointer import open_checkpointer
 from app.logging_config import configure_logging, get_logger
 from app.models import Job
+from app.store.board import open_board_store
 from app.store.runs import open_run_store
 from app.tools.github_tools import GitHubClient
 from app.webhooks.github import parse_issue_event, verify_signature
@@ -53,6 +56,7 @@ async def lifespan(app: FastAPI):
             )
         )
         run_store = await stack.enter_async_context(open_run_store(cfg.database_url))
+        board = await stack.enter_async_context(open_board_store(cfg.database_url))
         queue = JobQueue(
             processor=_make_processor(saver, run_store),
             concurrency=cfg.worker_concurrency,
@@ -61,6 +65,7 @@ async def lifespan(app: FastAPI):
         app.state.queue = queue
         app.state.checkpointer = saver
         app.state.run_store = run_store
+        app.state.board = board
         try:
             yield
         finally:
@@ -70,11 +75,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Coordinator3000", version=__version__, lifespan=lifespan)
 
+# Board + agent coordination API (Jira-like tasks; per-account token auth).
+app.include_router(agent_router)
+app.include_router(admin_router)
+
 
 # ---- UI ---------------------------------------------------------------------
 @app.get("/", include_in_schema=False)
 async def dashboard() -> FileResponse:
     return FileResponse(_WEB_DIR / "index.html")
+
+
+@app.get("/board", include_in_schema=False)
+async def board_ui() -> FileResponse:
+    return FileResponse(_WEB_DIR / "board.html")
 
 
 @app.get("/demo", include_in_schema=False)
