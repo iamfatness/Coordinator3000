@@ -27,7 +27,7 @@ The critical path from "works locally" to "a real chat app moves work forward."
   ChatGPT connectors (managed Postgres + a container host). *Blocker for everything.*
 - 🟡 **Admin auth** — protect board-management + token-minting endpoints
   (`ADMIN_TOKEN`). *(in progress — see this PR)*
-- ⬜ **Token lifecycle** — list / revoke / rotate; read-vs-write scopes; expiry.
+- ✅ **Token lifecycle** — list / revoke / rotate + read-vs-write scopes (expiry: later).
 - ⬜ **MCP connector hardening** — verified Claude.ai connector flow end-to-end;
   per-account isolation; clear unauthorized errors.
 - ⬜ **Submit robustness** — surfaced patch-apply failures, PR de-dup, link the PR
@@ -39,8 +39,8 @@ The critical path from "works locally" to "a real chat app moves work forward."
 - ⬜ Orgs / accounts / project membership + RBAC.
 - ⬜ Richer board — dependency graph, subtasks, labels, comment threads, activity
   feed, assignment rules, saved goal views.
-- ⬜ Smarter conflict handling — per-file leases, **claim TTL + auto-release of
-  stale claims**, merge-queue awareness, rebase guidance.
+- 🟡 Smarter conflict handling — ✅ **claim TTL + auto-release of stale claims**;
+  next: per-file leases, merge-queue awareness, rebase guidance.
 - ⬜ Goal "definition of done" / acceptance criteria the Reviewer checks.
 - ⬜ Events out (Slack / GitHub checks) and richer webhooks in.
 

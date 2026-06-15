@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     # those endpoints are open (dev only) — set this before exposing publicly.
     admin_token: str = ""
 
+    # Auto-release a claimed task back to the backlog after this many seconds of
+    # no progress (0 disables). Swept every `claim_sweep_interval` seconds.
+    claim_ttl_seconds: int = 1800
+    claim_sweep_interval: int = 60
+
     # ---- Sandbox ------------------------------------------------------------
     sandbox_mode: str = "subprocess"  # "subprocess" | "docker"
     sandbox_timeout: int = 300

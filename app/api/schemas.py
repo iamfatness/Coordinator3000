@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class AccountIn(BaseModel):
     name: str
     kind: str = "agent"
+    scope: str = "write"  # "write" (claim/submit) or "read" (list/get only)
 
 
 class ProjectIn(BaseModel):
