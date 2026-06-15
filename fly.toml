@@ -15,7 +15,7 @@ primary_region = 'iad'
   WORKSPACE_ROOT = '/tmp/c3000-workspaces'
 
 [processes]
-  app = 'uvicorn app.main:app --host 0.0.0.0 --port 8000'
+  app = 'uvicorn app.main:app --host 0.0.0.0 --port 8080'
 
 [http_service]
   internal_port = 8080
