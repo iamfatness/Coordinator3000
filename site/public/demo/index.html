@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Coordinator3000 — Console (demo)</title>
+<link rel="stylesheet" href="/demo/demo.css" />
+<script src="/demo/app.js" defer></script>
+</head>
+<body>
+<div class="demo-flag">🎛️ <b>Demo preview</b> — static mock data, no backend. <a href="/">← Back to Coordinator3000</a></div>
+
+<header>
+  <div class="brand">
+    <div class="logo"></div>
+    <h1>Coordinator3000 <small>· orchestration console</small></h1>
+  </div>
+  <div class="hdr-right">
+    <span class="pill"><span class="dot"></span>2 workers online</span>
+    <span class="pill">label: ai-task</span>
+    <button class="btn btn-primary" data-action="new-run">+ New run</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="metrics" id="metrics"></div>
+  <div class="toolbar">
+    <div class="chips" id="chips"></div>
+    <input class="search" id="search" placeholder="Search repo, issue, title…" />
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Status</th><th>Issue</th><th>Pipeline</th><th>Agents</th><th>Iter</th><th>Duration</th><th>PR</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="muted small foot">Showing <span id="count"></span> runs · auto-refresh every 4s (live), click a row for full detail.</p>
+</div>
+
+<div class="scrim" id="scrim" data-action="close-drawer"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh">
+    <span class="x" data-action="close-drawer">✕</span>
+    <h3 id="d-title">—</h3>
+    <div class="meta" id="d-meta">—</div>
+    <div class="ctrls" id="d-ctrls"></div>
+  </div>
+  <div class="tabs" id="d-tabs"></div>
+  <div class="dbody" id="d-body"></div>
+</aside>
+
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3>Start an autonomous run</h3>
+    <p class="muted small nomt">Triggers immediately — no GitHub label or webhook required.</p>
+    <div class="row3">
+      <div><label>Owner</label><input value="iamfatness" /></div>
+      <div><label>Repo</label><input value="CoreVideo" /></div>
+      <div><label>Issue #</label><input value="151" /></div>
+    </div>
+    <div class="row2">
+      <div><label>Coder model</label>
+        <select><option>openai:gpt-5-codex (Codex)</option><option>anthropic:claude-opus-4-8 (Claude)</option><option>xai:grok-4 (Grok)</option></select></div>
+      <div><label>Reviewer model</label>
+        <select><option>anthropic:claude-opus-4-8 (Claude)</option><option>xai:grok-4 (Grok)</option></select></div>
+    </div>
+    <label class="chk"><input type="checkbox" />Open PR as draft (require human approval)</label>
+    <div class="mfoot">
+      <button class="btn btn-ghost" data-action="close-modal">Cancel</button>
+      <button class="btn btn-primary" data-action="fake-start">Run agents</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
