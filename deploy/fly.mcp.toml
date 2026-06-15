@@ -1,0 +1,35 @@
+# Fly.io config for the Coordinator3000 MCP server (Claude.ai / ChatGPT connectors).
+# Same image as the app, different start command + port. Shares the Postgres.
+# One-time setup:
+#   fly launch --no-deploy --copy-config --config deploy/fly.mcp.toml --name coordinator3000-mcp
+#   fly postgres attach <db> -a coordinator3000-mcp        # same DB -> DATABASE_URL
+#   fly secrets set -a coordinator3000-mcp GITHUB_TOKEN=... # needed for submit_work
+#   fly deploy -c deploy/fly.mcp.toml
+# Custom domain:  fly certs add -a coordinator3000-mcp mcp.c3000.iamfatness.us
+# Connect from Claude.ai/ChatGPT:  https://mcp.c3000.iamfatness.us/mcp
+#   header  Authorization: Bearer c3k_<worker token>
+
+app = "coordinator3000-mcp"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  WORKSPACE_ROOT = "/tmp/c3000-mcp-workspaces"
+  LOG_LEVEL = "INFO"
+
+[processes]
+  app = "python -m app.mcp_server"
+
+[http_service]
+  internal_port = 8001
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
