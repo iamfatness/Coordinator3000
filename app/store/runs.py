@@ -15,30 +15,34 @@ from psycopg_pool import AsyncConnectionPool
 
 log = logging.getLogger(__name__)
 
-_DDL = """
-CREATE TABLE IF NOT EXISTS coordinator_runs (
-    run_id        TEXT PRIMARY KEY,
-    owner         TEXT NOT NULL,
-    repo          TEXT NOT NULL,
-    issue_number  INTEGER NOT NULL,
-    issue_title   TEXT,
-    branch        TEXT,
-    status        TEXT NOT NULL DEFAULT 'queued',
-    phase         TEXT,
-    pr_url        TEXT,
-    error         TEXT,
-    plan          TEXT,
-    coder_report  TEXT,
-    review_report TEXT,
-    review_passed BOOLEAN,
-    iterations    INTEGER NOT NULL DEFAULT 0,
-    trigger       TEXT NOT NULL DEFAULT 'webhook',
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS coordinator_runs_created_idx
-    ON coordinator_runs (created_at DESC);
-"""
+# Separate statements — psycopg's execute() prepares each statement and cannot
+# run multiple commands in one call.
+_DDL = (
+    """
+    CREATE TABLE IF NOT EXISTS coordinator_runs (
+        run_id        TEXT PRIMARY KEY,
+        owner         TEXT NOT NULL,
+        repo          TEXT NOT NULL,
+        issue_number  INTEGER NOT NULL,
+        issue_title   TEXT,
+        branch        TEXT,
+        status        TEXT NOT NULL DEFAULT 'queued',
+        phase         TEXT,
+        pr_url        TEXT,
+        error         TEXT,
+        plan          TEXT,
+        coder_report  TEXT,
+        review_report TEXT,
+        review_passed BOOLEAN,
+        iterations    INTEGER NOT NULL DEFAULT 0,
+        trigger       TEXT NOT NULL DEFAULT 'webhook',
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS coordinator_runs_created_idx "
+    "ON coordinator_runs (created_at DESC)",
+)
 
 # Columns the worker is allowed to update as a run progresses.
 _UPDATABLE = {
@@ -53,7 +57,8 @@ class RunStore:
 
     async def setup(self) -> None:
         async with self._pool.connection() as conn:
-            await conn.execute(_DDL)
+            for stmt in _DDL:
+                await conn.execute(stmt)
         log.info("run store ready")
 
     async def create(

@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "coordinator3000-site",
+  "main": "worker.js",
+  "compatibility_date": "2026-06-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  // Workers Custom Domain: on deploy, Cloudflare provisions the DNS record and
+  // TLS cert for this hostname automatically (no manual DNS entry needed), as
+  // long as iamfatness.us is in the same account and the API token can edit
+  // Workers Routes + DNS for the zone.
+  "routes": [
+    { "pattern": "c3000.iamfatness.us", "custom_domain": true }
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./public"
+  }
+}

@@ -77,6 +77,12 @@ async def dashboard() -> FileResponse:
     return FileResponse(_WEB_DIR / "index.html")
 
 
+@app.get("/demo", include_in_schema=False)
+async def demo() -> FileResponse:
+    # Static, mock-data preview of the envisioned console (no backend calls).
+    return FileResponse(_WEB_DIR / "demo.html")
+
+
 @app.get("/healthz")
 async def healthz() -> dict:
     return {"status": "ok"}
