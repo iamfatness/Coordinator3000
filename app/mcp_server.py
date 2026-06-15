@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import os
 
 from app.config import get_settings
 from app.store.board import BoardError, BoardStore, Conflict
@@ -181,5 +182,5 @@ if __name__ == "__main__":
     configure_logging(get_settings().log_level)
     # FastMCP manages its own session lifespan when run directly.
     mcp.settings.host = "0.0.0.0"
-    mcp.settings.port = 8001
+    mcp.settings.port = int(os.environ.get("PORT", "8001"))
     mcp.run(transport="streamable-http")
