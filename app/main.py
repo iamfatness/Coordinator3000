@@ -43,6 +43,30 @@ log = get_logger("app.main")
 _WEB_DIR = Path(__file__).parent / "web"
 
 
+async def _wait_for_db(database_url: str, attempts: int = 12, delay: float = 3.0) -> None:
+    """Block until Postgres accepts a connection, with backoff.
+
+    Makes startup resilient to a momentarily-unavailable DB (slow boot, failover)
+    so the deploy doesn't hard-fail on a transient connection error.
+    """
+    import psycopg
+
+    last = None
+    for i in range(1, attempts + 1):
+        try:
+            conn = await psycopg.AsyncConnection.connect(database_url, connect_timeout=5)
+            await conn.close()
+            if i > 1:
+                log.info("database reachable after %d attempt(s)", i)
+            return
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            log.warning("database not ready (attempt %d/%d): %s", i, attempts, exc)
+            if i < attempts:
+                await asyncio.sleep(delay)
+    raise RuntimeError(f"database unreachable after {attempts} attempts: {last}")
+
+
 async def _stale_claim_sweeper(board, cfg) -> None:
     """Periodically return tasks claimed past the TTL to the backlog."""
     if cfg.claim_ttl_seconds <= 0:
@@ -62,6 +86,9 @@ async def lifespan(app: FastAPI):
     cfg = get_settings()
     configure_logging(cfg.log_level)
     log.info("Coordinator3000 %s starting up", __version__)
+
+    # Wait for Postgres before opening the stores (resilient startup).
+    await _wait_for_db(cfg.database_url)
 
     async with AsyncExitStack() as stack:
         saver = await stack.enter_async_context(
