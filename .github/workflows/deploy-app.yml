@@ -44,12 +44,15 @@ jobs:
         if: steps.cfg.outputs.enabled == 'true' && env.DATABASE_URL != ''
         run: |
           flyctl secrets set DATABASE_URL="$DATABASE_URL" -a coordinator3000 --stage
-          flyctl secrets set DATABASE_URL="$DATABASE_URL" -a coordinator3000-mcp --stage
+          flyctl secrets set DATABASE_URL="$DATABASE_URL" -a coordinator3000-mcp --stage || echo "mcp app not present yet — skipping"
 
       - name: Deploy app
         if: steps.cfg.outputs.enabled == 'true'
         run: flyctl deploy --remote-only -c fly.toml
 
+      # MCP is optional (the REST agent API covers the same ops); don't fail the
+      # whole deploy if the coordinator3000-mcp app hasn't been created yet.
       - name: Deploy MCP server
         if: steps.cfg.outputs.enabled == 'true'
+        continue-on-error: true
         run: flyctl deploy --remote-only -c deploy/fly.mcp.toml
