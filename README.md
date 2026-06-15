@@ -69,8 +69,13 @@ keys. Manage it at **`/board`**, or via the API.
 | `POST /api/board/projects` | `{key, name, repo_owner, repo_name, base_branch?}` |
 | `POST /api/board/goals` | `{project_key, key, title, description?}` |
 | `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?}` |
-| `POST /api/board/accounts` | `{name}` → returns a `c3k_...` worker token (shown once) |
+| `POST /api/board/accounts` | `{name, scope?}` → a `c3k_...` token (shown once); `scope` = `write` (default) or `read` |
+| `POST /api/board/accounts/{id}/revoke` · `/rotate` | revoke a token, or rotate it (returns a new one) |
 | `GET  /api/board` | full board (powers the `/board` UI) |
+
+Tokens are scoped (`read` = list/get only; `write` = claim/submit/notes). A claimed
+task with no progress is auto-returned to the backlog after `CLAIM_TTL_SECONDS`
+(default 1800) so a stalled worker can't lock it.
 
 **Agent API** (per-account `Authorization: Bearer c3k_...`):
 
@@ -227,6 +232,7 @@ All configuration is environment-driven (see `.env.example`). Highlights:
 | `WORKER_CONCURRENCY` | `2` | Parallel autonomous runs |
 | `REQUIRE_HUMAN_APPROVAL` | `false` | When true, PRs open as drafts |
 | `ADMIN_TOKEN` | — | Guards board-admin + token-minting (`X-Admin-Token`); set before exposing |
+| `CLAIM_TTL_SECONDS` | `1800` | Auto-release a stalled claim back to the backlog after N seconds (0 disables) |
 | `SANDBOX_MODE` | `subprocess` | `subprocess` or `docker` code execution |
 | `SANDBOX_TIMEOUT` | `300` | Per-command wall-clock limit (seconds) |
 | `WORKSPACE_ROOT` | `/tmp/coordinator-workspaces` | Where repos are cloned |

@@ -85,6 +85,10 @@ _DDL = (
     """,
     "CREATE INDEX IF NOT EXISTS c3k_tasks_goal_idx ON c3k_tasks (goal_id)",
     "CREATE INDEX IF NOT EXISTS c3k_notes_task_idx ON c3k_notes (task_id)",
+    # Migrations (idempotent) — token lifecycle + claim TTL.
+    "ALTER TABLE c3k_accounts ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ",
+    "ALTER TABLE c3k_accounts ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'write'",
+    "ALTER TABLE c3k_tasks ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ",
 )
 
 
@@ -111,14 +115,16 @@ class BoardStore:
         log.info("board store ready")
 
     # ---- accounts -----------------------------------------------------------
-    async def create_account(self, name: str, kind: str = "agent") -> tuple[dict, str]:
+    async def create_account(
+        self, name: str, kind: str = "agent", scope: str = "write"
+    ) -> tuple[dict, str]:
         token = "c3k_" + secrets.token_urlsafe(28)
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "INSERT INTO c3k_accounts (name, kind, token_sha) VALUES (%s, %s, %s) "
-                    "RETURNING id, name, kind, created_at",
-                    (name, kind, _hash_token(token)),
+                    "INSERT INTO c3k_accounts (name, kind, token_sha, scope) "
+                    "VALUES (%s, %s, %s, %s) RETURNING id, name, kind, scope, created_at",
+                    (name, kind, _hash_token(token), scope),
                 )
                 account = await cur.fetchone()
         return account, token
@@ -127,7 +133,8 @@ class BoardStore:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "SELECT id, name, kind, created_at FROM c3k_accounts WHERE token_sha = %s",
+                    "SELECT id, name, kind, scope, created_at FROM c3k_accounts "
+                    "WHERE token_sha = %s AND revoked_at IS NULL",
                     (_hash_token(token),),
                 )
                 return await cur.fetchone()
@@ -136,9 +143,37 @@ class BoardStore:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "SELECT id, name, kind, created_at FROM c3k_accounts ORDER BY id"
+                    "SELECT id, name, kind, scope, created_at, revoked_at "
+                    "FROM c3k_accounts ORDER BY id"
                 )
                 return list(await cur.fetchall())
+
+    async def revoke_account(self, account_id: int) -> dict:
+        async with self._pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "UPDATE c3k_accounts SET revoked_at = now() WHERE id = %s "
+                    "RETURNING id, name, kind, scope, revoked_at",
+                    (account_id,),
+                )
+                account = await cur.fetchone()
+        if not account:
+            raise BoardError(f"unknown account {account_id}")
+        return account
+
+    async def rotate_account(self, account_id: int) -> tuple[dict, str]:
+        token = "c3k_" + secrets.token_urlsafe(28)
+        async with self._pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "UPDATE c3k_accounts SET token_sha = %s, revoked_at = NULL WHERE id = %s "
+                    "RETURNING id, name, kind, scope",
+                    (_hash_token(token), account_id),
+                )
+                account = await cur.fetchone()
+        if not account:
+            raise BoardError(f"unknown account {account_id}")
+        return account, token
 
     # ---- projects / goals ---------------------------------------------------
     async def create_project(
@@ -288,7 +323,8 @@ class BoardStore:
                     raise Conflict(f"task {key} is blocked by {', '.join(open_blockers)}")
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "UPDATE c3k_tasks SET status='in_progress', assignee=%s, updated_at=now() "
+                    "UPDATE c3k_tasks SET status='in_progress', assignee=%s, "
+                    "claimed_at=now(), updated_at=now() "
                     "WHERE key=%s AND status='backlog' RETURNING *",
                     (account_id, key.upper()),
                 )
@@ -338,6 +374,32 @@ class BoardStore:
             if not task:
                 raise BoardError(f"unknown task {key!r}")
             return task
+
+    async def release_stale(self, ttl_seconds: int) -> list[str]:
+        """Return in-progress tasks claimed longer than `ttl_seconds` to backlog.
+
+        Prevents a stalled worker from locking a task forever. Adds a note to each
+        released task. Returns the released task keys.
+        """
+        if ttl_seconds < 0:
+            return []
+        async with self._pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "UPDATE c3k_tasks SET status='backlog', assignee=NULL, "
+                    "claimed_at=NULL, updated_at=now() "
+                    "WHERE status='in_progress' AND claimed_at IS NOT NULL "
+                    "AND claimed_at < now() - make_interval(secs => %s) "
+                    "RETURNING id, key",
+                    (ttl_seconds,),
+                )
+                released = list(await cur.fetchall())
+            for row in released:
+                await self._add_note(
+                    conn, row["id"], None, None, "note",
+                    f"Auto-released to backlog: claim exceeded the {ttl_seconds}s TTL.",
+                )
+        return [r["key"] for r in released]
 
     async def add_note(self, task_key: str, account_id: int | None, body: str, kind: str = "note") -> dict:
         async with self._pool.connection() as conn:

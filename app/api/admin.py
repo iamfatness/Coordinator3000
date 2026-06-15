@@ -31,9 +31,26 @@ async def board(request: Request):
 
 @admin.post("/accounts", status_code=201)
 async def create_account(body: AccountIn, request: Request):
-    account, token = await _board(request).create_account(body.name, body.kind)
+    account, token = await _board(request).create_account(body.name, body.kind, body.scope)
     # The token is shown exactly once.
     return {"account": account, "token": token}
+
+
+@admin.post("/accounts/{account_id}/revoke")
+async def revoke_account(account_id: int, request: Request):
+    try:
+        return await _board(request).revoke_account(account_id)
+    except BoardError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@admin.post("/accounts/{account_id}/rotate")
+async def rotate_account(account_id: int, request: Request):
+    try:
+        account, token = await _board(request).rotate_account(account_id)
+        return {"account": account, "token": token}
+    except BoardError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/accounts")

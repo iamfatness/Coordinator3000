@@ -23,6 +23,11 @@ def _board(request: Request):
     return request.app.state.board
 
 
+def _require_write(account: dict) -> None:
+    if account.get("scope", "write") != "write":
+        raise HTTPException(status_code=403, detail="this token is read-only")
+
+
 @router.get("/me")
 async def me(account: dict = Depends(current_account)) -> dict:
     return account
@@ -51,6 +56,7 @@ async def get_task(key: str, request: Request, account: dict = Depends(current_a
 
 @router.post("/tasks/{key}/claim")
 async def claim(key: str, request: Request, account: dict = Depends(current_account)):
+    _require_write(account)
     try:
         return await _board(request).claim_task(key, account["id"])
     except Conflict as exc:
@@ -61,6 +67,7 @@ async def claim(key: str, request: Request, account: dict = Depends(current_acco
 
 @router.post("/tasks/{key}/notes")
 async def add_note(key: str, body: NoteIn, request: Request, account: dict = Depends(current_account)):
+    _require_write(account)
     try:
         return await _board(request).add_note(key, account["id"], body.body, body.kind)
     except BoardError as exc:
@@ -69,6 +76,7 @@ async def add_note(key: str, body: NoteIn, request: Request, account: dict = Dep
 
 @router.post("/tasks/{key}/submit")
 async def submit(key: str, body: SubmitIn, request: Request, account: dict = Depends(current_account)):
+    _require_write(account)
     board = _board(request)
     task = await board.get_task(key)
     if not task:
@@ -90,6 +98,7 @@ async def submit(key: str, body: SubmitIn, request: Request, account: dict = Dep
 
 @router.post("/tasks/{key}/block")
 async def block(key: str, body: BlockIn, request: Request, account: dict = Depends(current_account)):
+    _require_write(account)
     board = _board(request)
     try:
         await board.add_note(key, account["id"], f"Blocked: {body.reason}", "note")
@@ -100,6 +109,7 @@ async def block(key: str, body: BlockIn, request: Request, account: dict = Depen
 
 @router.post("/tasks/{key}/release")
 async def release(key: str, request: Request, account: dict = Depends(current_account)):
+    _require_write(account)
     try:
         return await _board(request).set_status(key, "backlog")
     except BoardError as exc:

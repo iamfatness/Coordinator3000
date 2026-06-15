@@ -43,6 +43,20 @@ log = get_logger("app.main")
 _WEB_DIR = Path(__file__).parent / "web"
 
 
+async def _stale_claim_sweeper(board, cfg) -> None:
+    """Periodically return tasks claimed past the TTL to the backlog."""
+    if cfg.claim_ttl_seconds <= 0:
+        return
+    while True:
+        try:
+            released = await board.release_stale(cfg.claim_ttl_seconds)
+            if released:
+                log.info("auto-released stale claims: %s", ", ".join(released))
+        except Exception:  # noqa: BLE001
+            log.exception("stale-claim sweep failed")
+        await asyncio.sleep(max(5, cfg.claim_sweep_interval))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cfg = get_settings()
@@ -66,9 +80,11 @@ async def lifespan(app: FastAPI):
         app.state.checkpointer = saver
         app.state.run_store = run_store
         app.state.board = board
+        sweeper = asyncio.create_task(_stale_claim_sweeper(board, cfg))
         try:
             yield
         finally:
+            sweeper.cancel()
             await queue.stop()
     log.info("shutdown complete")
 
