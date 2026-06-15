@@ -103,6 +103,9 @@ _DDL = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS c3k_events_created_idx ON c3k_events (created_at DESC)",
+    # Phase 2 — definition of done (acceptance criteria).
+    "ALTER TABLE c3k_goals ADD COLUMN IF NOT EXISTS acceptance TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE c3k_tasks ADD COLUMN IF NOT EXISTS acceptance TEXT NOT NULL DEFAULT ''",
 )
 
 
@@ -220,7 +223,7 @@ class BoardStore:
             return await cur.fetchone()
 
     async def create_goal(
-        self, project_key: str, key: str, title: str, description: str = ""
+        self, project_key: str, key: str, title: str, description: str = "", acceptance: str = ""
     ) -> dict:
         async with self._pool.connection() as conn:
             project = await self._project_by_key(conn, project_key)
@@ -228,9 +231,9 @@ class BoardStore:
                 raise BoardError(f"unknown project {project_key!r}")
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "INSERT INTO c3k_goals (project_id, key, title, description) "
-                    "VALUES (%s, %s, %s, %s) RETURNING *",
-                    (project["id"], key.upper(), title, description),
+                    "INSERT INTO c3k_goals (project_id, key, title, description, acceptance) "
+                    "VALUES (%s, %s, %s, %s, %s) RETURNING *",
+                    (project["id"], key.upper(), title, description, acceptance),
                 )
                 return await cur.fetchone()
 
@@ -257,6 +260,7 @@ class BoardStore:
         files: list[str] | None = None,
         blocked_by: list[str] | None = None,
         labels: list[str] | None = None,
+        acceptance: str = "",
     ) -> dict:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
@@ -274,12 +278,12 @@ class BoardStore:
                 task_key = f"{proj['key']}-{proj['task_seq']}"
                 await cur.execute(
                     "INSERT INTO c3k_tasks (project_id, goal_id, key, title, description, "
-                    "priority, files, blocked_by, labels) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+                    "priority, files, blocked_by, labels, acceptance) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
                     (
                         goal["project_id"], goal["id"], task_key, title, description,
                         priority, files or [], [b.upper() for b in (blocked_by or [])],
-                        labels or [],
+                        labels or [], acceptance,
                     ),
                 )
                 return await cur.fetchone()
@@ -296,6 +300,15 @@ class BoardStore:
                 return None
             task["notes"] = await self._notes_for(conn, task["id"])
             task["conflicts"] = [t["key"] for t in await self._overlaps(conn, task)]
+            if task.get("goal_id"):
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(
+                        "SELECT key, acceptance FROM c3k_goals WHERE id = %s", (task["goal_id"],)
+                    )
+                    goal = await cur.fetchone()
+                if goal:
+                    task["goal_key"] = goal["key"]
+                    task["goal_acceptance"] = goal["acceptance"]
             return task
 
     async def list_work(self, goal_key: str) -> dict:

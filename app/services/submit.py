@@ -55,9 +55,12 @@ async def submit_diff(project: dict, task: dict, account_name: str, diff: str, s
         sha = await asyncio.to_thread(git_tools.commit_all, workspace, commit_msg)
         await asyncio.to_thread(git_tools.push_branch, workspace, clone_url, branch)
 
+        accept = task.get("acceptance") or task.get("goal_acceptance") or ""
+        accept_block = f"**Definition of done:**\n{accept}\n\n" if accept else ""
         body = (
             f"### {task['key']} — {task['title']}\n\n"
             f"{task.get('description') or ''}\n\n"
+            f"{accept_block}"
             f"**Summary (agent):**\n{summary}\n\n"
             f"---\n_Submitted via Coordinator3000 by worker `{account_name}`._"
         )

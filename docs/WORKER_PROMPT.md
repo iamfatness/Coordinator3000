@@ -39,9 +39,11 @@ All require `Authorization: Bearer c3k_...`.
 > 2. `claim_task` it. If the response includes **conflicts** (tasks touching the
 >    same files), read those tasks (`get_task`) and `add_note` to coordinate —
 >    e.g. agree an order, or pick a different task to avoid clobbering work.
-> 3. Implement the task. Produce a **unified diff** (git format,
->    `diff --git a/… b/…`) against the repo's default branch. Keep it minimal and
->    matching the surrounding code.
+> 3. Read the task's **definition of done** (the `acceptance` field, plus the
+>    goal's `goal_acceptance` from `get_task`) and implement the task so it meets
+>    every criterion. Produce a **unified diff** (git format, `diff --git a/… b/…`)
+>    against the repo's default branch. Keep it minimal and matching the
+>    surrounding code.
 > 4. `submit_work` with a short `summary` and the `diff`. Coordinator3000 applies
 >    it, commits, and opens the PR. If it replies that the patch didn't apply,
 >    fix the diff and submit again.
