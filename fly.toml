@@ -1,41 +1,37 @@
-# Fly.io config for the Coordinator3000 app (board + agent API + autonomous engine).
-# One-time setup:
-#   fly launch --no-deploy --copy-config --name coordinator3000
-#   fly postgres create && fly postgres attach <db>      # sets DATABASE_URL
-#   fly secrets set GITHUB_TOKEN=... ADMIN_TOKEN=... GITHUB_WEBHOOK_SECRET=...
-#   fly deploy
-# Custom domain:  fly certs add api.c3000.iamfatness.us
-#                 (then a DNS-only CNAME api.c3000 -> coordinator3000.fly.dev)
+# fly.toml app configuration file generated for coordinator3000 on 2026-06-15T02:35:47Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "coordinator3000"
-primary_region = "iad"
+app = 'coordinator3000'
+primary_region = 'iad'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [env]
-  WORKSPACE_ROOT = "/tmp/c3000-workspaces"
-  LOG_LEVEL = "INFO"
-  WORKER_CONCURRENCY = "2"
+  LOG_LEVEL = 'INFO'
+  WORKER_CONCURRENCY = '2'
+  WORKSPACE_ROOT = '/tmp/c3000-workspaces'
 
 [processes]
-  app = "uvicorn app.main:app --host 0.0.0.0 --port 8080"
+  app = 'uvicorn app.main:app --host 0.0.0.0 --port 8080'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
-  processes = ["app"]
+  processes = ['app']
 
   [[http_service.checks]]
-    interval = "15s"
-    timeout = "2s"
-    grace_period = "10s"
-    method = "get"
-    path = "/healthz"
+    interval = '15s'
+    timeout = '2s'
+    grace_period = '10s'
+    method = 'get'
+    path = '/healthz'
 
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  size = 'shared-cpu-1x'
+  memory = '512mb'
