@@ -23,6 +23,8 @@ jobs:
     env:
       FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      APP_GITHUB_TOKEN: ${{ secrets.APP_GITHUB_TOKEN }}
+      ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
     steps:
       - uses: actions/checkout@v6
 
@@ -40,11 +42,14 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@master
         if: steps.cfg.outputs.enabled == 'true'
 
-      - name: Stage DATABASE_URL on the Fly apps
-        if: steps.cfg.outputs.enabled == 'true' && env.DATABASE_URL != ''
+      - name: Stage app secrets on the Fly apps
+        if: steps.cfg.outputs.enabled == 'true'
         run: |
-          flyctl secrets set DATABASE_URL="$DATABASE_URL" -a coordinator3000 --stage
-          flyctl secrets set DATABASE_URL="$DATABASE_URL" -a coordinator3000-mcp --stage || echo "mcp app not present yet — skipping"
+          for app in coordinator3000 coordinator3000-mcp; do
+            [ -n "$DATABASE_URL" ]     && flyctl secrets set DATABASE_URL="$DATABASE_URL"      -a "$app" --stage || true
+            [ -n "$APP_GITHUB_TOKEN" ] && flyctl secrets set GITHUB_TOKEN="$APP_GITHUB_TOKEN"   -a "$app" --stage || true
+            [ -n "$ADMIN_TOKEN" ]      && flyctl secrets set ADMIN_TOKEN="$ADMIN_TOKEN"         -a "$app" --stage || true
+          done
 
       - name: Deploy app
         if: steps.cfg.outputs.enabled == 'true'
