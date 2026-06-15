@@ -77,7 +77,7 @@ async def list_projects(request: Request):
 async def create_goal(body: GoalIn, request: Request):
     try:
         return await _board(request).create_goal(
-            body.project_key, body.key, body.title, body.description
+            body.project_key, body.key, body.title, body.description, body.acceptance
         )
     except BoardError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -94,7 +94,7 @@ async def create_task(body: TaskIn, request: Request):
     try:
         task = await board.create_task(
             body.goal_key, body.title, body.description, body.priority,
-            body.files, body.blocked_by, body.labels,
+            body.files, body.blocked_by, body.labels, body.acceptance,
         )
     except BoardError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

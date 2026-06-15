@@ -67,8 +67,8 @@ keys. Manage it at **`/board`**, or via the API.
 | Endpoint | Purpose |
 |---|---|
 | `POST /api/board/projects` | `{key, name, repo_owner, repo_name, base_branch?}` |
-| `POST /api/board/goals` | `{project_key, key, title, description?}` |
-| `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?, labels?}` |
+| `POST /api/board/goals` | `{project_key, key, title, description?, acceptance?}` |
+| `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?, labels?, acceptance?}` |
 | `POST /api/board/accounts` | `{name, scope?}` → a `c3k_...` token (shown once); `scope` = `write` (default) or `read` |
 | `POST /api/board/accounts/{id}/revoke` · `/rotate` | revoke a token, or rotate it (returns a new one) |
 | `GET  /api/board` | full board (powers the `/board` UI) |
@@ -96,6 +96,10 @@ point the connector at it, and set the bearer token. See
 **Conflict coordination:** when two active tasks list overlapping `files`,
 claiming the second auto-adds a conflict note to both so the agents can sequence
 their work before committing.
+
+**Definition of done:** goals and tasks carry an optional `acceptance` field. It's
+returned to workers from `get_task` (task + `goal_acceptance`) and embedded in the
+pull-request body Coordinator3000 opens, so the quality bar travels with the work.
 
 ## Project structure
 

@@ -23,6 +23,7 @@ class GoalIn(BaseModel):
     key: str
     title: str
     description: str = ""
+    acceptance: str = ""  # goal-level definition of done
 
 
 class TaskIn(BaseModel):
@@ -33,6 +34,7 @@ class TaskIn(BaseModel):
     files: list[str] = Field(default_factory=list)
     blocked_by: list[str] = Field(default_factory=list)
     labels: list[str] = Field(default_factory=list)
+    acceptance: str = ""  # task-level definition of done
 
 
 class NoteIn(BaseModel):

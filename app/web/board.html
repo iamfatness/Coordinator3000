@@ -41,6 +41,7 @@
   .conf{background:#43360f;color:#f2c879;border-radius:5px;padding:1px 6px;font-weight:600}
   .lbl{background:#1c2a3a;color:#9ec5ff;border-radius:5px;padding:1px 6px;font-size:10px}
   .blocked{background:#3a2330;color:#ff9ab0;border-radius:5px;padding:1px 6px;font-weight:600}
+  .dod{background:#13352a;color:#74e2a8;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;cursor:help}
   .act-row{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);align-items:baseline;font-size:12px}
   .act-row:last-child{border-bottom:0}
   .act-type{font-weight:700;min-width:104px}
@@ -71,11 +72,13 @@
       <div class="mini"><h4>Goal</h4>
         <input id="g_proj" placeholder="project key" /><input id="g_key" placeholder="goal key e.g. CV-G1" />
         <input id="g_title" placeholder="title" />
+        <input id="g_accept" placeholder="definition of done (optional)" />
         <button class="btn" data-do="goal">Create</button></div>
       <div class="mini"><h4>Task</h4>
         <input id="t_goal" placeholder="goal key" /><input id="t_title" placeholder="title" />
         <input id="t_files" placeholder="files (comma-sep, for conflicts)" />
         <input id="t_labels" placeholder="labels (comma-sep)" />
+        <input id="t_accept" placeholder="definition of done (optional)" />
         <button class="btn" data-do="task">Create</button></div>
       <div class="mini"><h4>Agent token</h4>
         <input id="a_name" placeholder="worker name e.g. claude-worker" />
@@ -158,10 +161,11 @@ function card(conf,done){return (t)=>{
   const who=t.assignee_name?`<span class="who">${esc(t.assignee_name)}</span>`:"";
   const c=conf.has(t.key)?`<span class="conf">conflict</span>`:"";
   const labels=(t.labels||[]).map(l=>`<span class="lbl">${esc(l)}</span>`).join("");
+  const dod=t.acceptance?`<span class="dod" title="${esc(t.acceptance)}">DoD</span>`:"";
   const unmet=(t.blocked_by||[]).filter(b=>!done.has(b));
   const blk=(t.status==="backlog"&&unmet.length)?`<span class="blocked">blocked by ${esc(unmet.join(", "))}</span>`:"";
   return `<div class="card"><div class="k">${esc(t.key)}</div><div class="t">${esc(t.title)}</div>
-    <div class="meta"><span class="pri p${t.priority}"></span>${who}${labels}${blk}${c}${pr}</div></div>`;
+    <div class="meta"><span class="pri p${t.priority}"></span>${who}${labels}${dod}${blk}${c}${pr}</div></div>`;
 }}
 
 function fmt(ts){if(!ts)return"";const d=new Date(ts);return d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});}
@@ -183,8 +187,8 @@ document.addEventListener("click",async(e)=>{
   try{
     if(act==="refresh"){await load();return;}
     if(act==="project"){await api("POST","/api/board/projects",{key:$("p_key").value,name:$("p_name").value,repo_owner:$("p_owner").value,repo_name:$("p_repo").value});toast("Project created");await load();}
-    if(act==="goal"){await api("POST","/api/board/goals",{project_key:$("g_proj").value,key:$("g_key").value,title:$("g_title").value});toast("Goal created");await load();}
-    if(act==="task"){const files=$("t_files").value.split(",").map(s=>s.trim()).filter(Boolean);const labels=$("t_labels").value.split(",").map(s=>s.trim()).filter(Boolean);await api("POST","/api/board/tasks",{goal_key:$("t_goal").value,title:$("t_title").value,files,labels});toast("Task created");await load();}
+    if(act==="goal"){await api("POST","/api/board/goals",{project_key:$("g_proj").value,key:$("g_key").value,title:$("g_title").value,acceptance:$("g_accept").value});toast("Goal created");await load();}
+    if(act==="task"){const files=$("t_files").value.split(",").map(s=>s.trim()).filter(Boolean);const labels=$("t_labels").value.split(",").map(s=>s.trim()).filter(Boolean);await api("POST","/api/board/tasks",{goal_key:$("t_goal").value,title:$("t_title").value,files,labels,acceptance:$("t_accept").value});toast("Task created");await load();}
     if(act==="account"){const r=await api("POST","/api/board/accounts",{name:$("a_name").value});toast("Token (copy now): "+r.token);}
   }catch(err){toast("Error: "+err.message);}
 });

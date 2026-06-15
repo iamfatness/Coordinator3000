@@ -41,7 +41,8 @@ The critical path from "works locally" to "a real chat app moves work forward."
   cards; next: dependency graph view, subtasks, comment threads, assignment rules.
 - 🟡 Smarter conflict handling — ✅ **claim TTL + auto-release of stale claims**;
   next: per-file leases, merge-queue awareness, rebase guidance.
-- ⬜ Goal "definition of done" / acceptance criteria the Reviewer checks.
+- ✅ Goal/task **definition of done** (acceptance criteria) — surfaced to workers
+  via `get_task` and embedded in the PR body. (Autonomous-engine reviewer enforcement: later.)
 - ⬜ Events out (Slack / GitHub checks) and richer webhooks in.
 
 ## Phase 3 — Reliability & scale ⬜
