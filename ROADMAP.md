@@ -37,8 +37,8 @@ The critical path from "works locally" to "a real chat app moves work forward."
 
 ## Phase 2 — Coordination depth & multi-tenant ⬜
 - ⬜ Orgs / accounts / project membership + RBAC.
-- ⬜ Richer board — dependency graph, subtasks, labels, comment threads, activity
-  feed, assignment rules, saved goal views.
+- 🟡 Richer board — ✅ **activity feed**, ✅ **labels**, ✅ blocked-by surfaced on
+  cards; next: dependency graph view, subtasks, comment threads, assignment rules.
 - 🟡 Smarter conflict handling — ✅ **claim TTL + auto-release of stale claims**;
   next: per-file leases, merge-queue awareness, rebase guidance.
 - ⬜ Goal "definition of done" / acceptance criteria the Reviewer checks.

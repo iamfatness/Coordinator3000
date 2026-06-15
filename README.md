@@ -68,10 +68,11 @@ keys. Manage it at **`/board`**, or via the API.
 |---|---|
 | `POST /api/board/projects` | `{key, name, repo_owner, repo_name, base_branch?}` |
 | `POST /api/board/goals` | `{project_key, key, title, description?}` |
-| `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?}` |
+| `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?, labels?}` |
 | `POST /api/board/accounts` | `{name, scope?}` → a `c3k_...` token (shown once); `scope` = `write` (default) or `read` |
 | `POST /api/board/accounts/{id}/revoke` · `/rotate` | revoke a token, or rotate it (returns a new one) |
 | `GET  /api/board` | full board (powers the `/board` UI) |
+| `GET  /api/board/activity` | recent activity feed (task created/claimed/submitted/conflict/…) |
 
 Tokens are scoped (`read` = list/get only; `write` = claim/submit/notes). A claimed
 task with no progress is auto-returned to the backlog after `CLAIM_TTL_SECONDS`

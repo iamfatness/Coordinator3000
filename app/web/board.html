@@ -39,6 +39,15 @@
   .p3{background:var(--red)}.p2{background:var(--amber)}.p1{background:var(--dim)}
   .who{background:var(--panel2);border-radius:5px;padding:1px 6px}
   .conf{background:#43360f;color:#f2c879;border-radius:5px;padding:1px 6px;font-weight:600}
+  .lbl{background:#1c2a3a;color:#9ec5ff;border-radius:5px;padding:1px 6px;font-size:10px}
+  .blocked{background:#3a2330;color:#ff9ab0;border-radius:5px;padding:1px 6px;font-weight:600}
+  .act-row{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);align-items:baseline;font-size:12px}
+  .act-row:last-child{border-bottom:0}
+  .act-type{font-weight:700;min-width:104px}
+  .at-claimed{color:#9ec5ff}.at-submitted{color:#74e2a8}.at-conflict{color:#f2c879}
+  .at-task_created{color:var(--muted)}.at-blocked{color:#ff9aa9}
+  .at-released,.at-auto_released{color:var(--dim)}.at-note{color:var(--muted)}
+  .act-when{color:var(--dim);margin-left:auto}
   a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
   .toast{position:fixed;bottom:16px;right:16px;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:8px;opacity:0;transition:.2s;max-width:380px;word-break:break-all}
   .toast.show{opacity:1}
@@ -66,6 +75,7 @@
       <div class="mini"><h4>Task</h4>
         <input id="t_goal" placeholder="goal key" /><input id="t_title" placeholder="title" />
         <input id="t_files" placeholder="files (comma-sep, for conflicts)" />
+        <input id="t_labels" placeholder="labels (comma-sep)" />
         <button class="btn" data-do="task">Create</button></div>
       <div class="mini"><h4>Agent token</h4>
         <input id="a_name" placeholder="worker name e.g. claude-worker" />
@@ -83,6 +93,11 @@
   </div>
 
   <div class="board" id="board"></div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)">Activity</h3>
+    <div id="activity" class="muted" style="font-size:12px">loading…</div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -122,6 +137,7 @@ async function load(){
   gf.innerHTML='<option value="">All goals</option>'+DATA.goals.map(g=>`<option value="${esc(g.key)}">${esc(g.key)} — ${esc(g.title)}</option>`).join("");
   gf.value=cur;
   render();
+  renderActivity();
 }
 
 function render(){
@@ -129,20 +145,37 @@ function render(){
   let tasks=DATA.tasks;
   if(goalKey){const g=DATA.goals.find(x=>x.key===goalKey);tasks=tasks.filter(t=>g&&t.goal_id===g.id);}
   const conf=conflictSet(DATA.tasks);
+  const done=new Set(DATA.tasks.filter(t=>t.status==="done").map(t=>t.key));
   $("summary").textContent=`${DATA.projects.length} projects · ${DATA.goals.length} goals · ${tasks.length} tasks`;
   $("board").innerHTML=COLS.map(([st,label])=>{
     const inCol=tasks.filter(t=>(t.status==="claimed"?"in_progress":t.status)===st);
-    return `<div class="col"><h3>${label} <span>${inCol.length}</span></h3>${inCol.map(card(conf)).join("")||'<p class="muted" style="font-size:12px">—</p>'}</div>`;
+    return `<div class="col"><h3>${label} <span>${inCol.length}</span></h3>${inCol.map(card(conf,done)).join("")||'<p class="muted" style="font-size:12px">—</p>'}</div>`;
   }).join("");
 }
 
-function card(conf){return (t)=>{
+function card(conf,done){return (t)=>{
   const pr=t.pr_url?` · <a href="${esc(t.pr_url)}" target="_blank">PR</a>`:"";
   const who=t.assignee_name?`<span class="who">${esc(t.assignee_name)}</span>`:"";
   const c=conf.has(t.key)?`<span class="conf">conflict</span>`:"";
+  const labels=(t.labels||[]).map(l=>`<span class="lbl">${esc(l)}</span>`).join("");
+  const unmet=(t.blocked_by||[]).filter(b=>!done.has(b));
+  const blk=(t.status==="backlog"&&unmet.length)?`<span class="blocked">blocked by ${esc(unmet.join(", "))}</span>`:"";
   return `<div class="card"><div class="k">${esc(t.key)}</div><div class="t">${esc(t.title)}</div>
-    <div class="meta"><span class="pri p${t.priority}"></span>${who}${c}${pr}</div></div>`;
+    <div class="meta"><span class="pri p${t.priority}"></span>${who}${labels}${blk}${c}${pr}</div></div>`;
 }}
+
+function fmt(ts){if(!ts)return"";const d=new Date(ts);return d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});}
+
+async function renderActivity(){
+  let ev=[];
+  try{ev=await api("GET","/api/board/activity?limit=40");}catch(e){return;}
+  $("activity").innerHTML=ev.length?ev.map(e=>{
+    const who=e.account?` <span class="muted">by ${esc(e.account)}</span>`:"";
+    const tk=e.task_key?`<b>${esc(e.task_key)}</b> `:"";
+    const d=e.detail?` <span class="muted">— ${esc(e.detail)}</span>`:"";
+    return `<div class="act-row"><span class="act-type at-${esc(e.type)}">${esc(e.type)}</span><span>${tk}${who}${d}</span><span class="act-when">${fmt(e.created_at)}</span></div>`;
+  }).join(""):'<span class="muted">No activity yet.</span>';
+}
 
 document.addEventListener("click",async(e)=>{
   const b=e.target.closest("[data-do]");if(!b)return;
@@ -151,7 +184,7 @@ document.addEventListener("click",async(e)=>{
     if(act==="refresh"){await load();return;}
     if(act==="project"){await api("POST","/api/board/projects",{key:$("p_key").value,name:$("p_name").value,repo_owner:$("p_owner").value,repo_name:$("p_repo").value});toast("Project created");await load();}
     if(act==="goal"){await api("POST","/api/board/goals",{project_key:$("g_proj").value,key:$("g_key").value,title:$("g_title").value});toast("Goal created");await load();}
-    if(act==="task"){const files=$("t_files").value.split(",").map(s=>s.trim()).filter(Boolean);await api("POST","/api/board/tasks",{goal_key:$("t_goal").value,title:$("t_title").value,files});toast("Task created");await load();}
+    if(act==="task"){const files=$("t_files").value.split(",").map(s=>s.trim()).filter(Boolean);const labels=$("t_labels").value.split(",").map(s=>s.trim()).filter(Boolean);await api("POST","/api/board/tasks",{goal_key:$("t_goal").value,title:$("t_title").value,files,labels});toast("Task created");await load();}
     if(act==="account"){const r=await api("POST","/api/board/accounts",{name:$("a_name").value});toast("Token (copy now): "+r.token);}
   }catch(err){toast("Error: "+err.message);}
 });

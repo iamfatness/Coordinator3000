@@ -32,6 +32,7 @@ class TaskIn(BaseModel):
     priority: int = 2
     files: list[str] = Field(default_factory=list)
     blocked_by: list[str] = Field(default_factory=list)
+    labels: list[str] = Field(default_factory=list)
 
 
 class NoteIn(BaseModel):
