@@ -89,6 +89,20 @@ _DDL = (
     "ALTER TABLE c3k_accounts ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ",
     "ALTER TABLE c3k_accounts ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'write'",
     "ALTER TABLE c3k_tasks ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMPTZ",
+    # Phase 2 — activity feed + labels.
+    "ALTER TABLE c3k_tasks ADD COLUMN IF NOT EXISTS labels TEXT[] NOT NULL DEFAULT '{}'",
+    """
+    CREATE TABLE IF NOT EXISTS c3k_events (
+        id          BIGSERIAL PRIMARY KEY,
+        type        TEXT NOT NULL,
+        account_id  BIGINT REFERENCES c3k_accounts(id) ON DELETE SET NULL,
+        task_key    TEXT,
+        goal_key    TEXT,
+        detail      TEXT NOT NULL DEFAULT '',
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS c3k_events_created_idx ON c3k_events (created_at DESC)",
 )
 
 
@@ -242,6 +256,7 @@ class BoardStore:
         priority: int = 2,
         files: list[str] | None = None,
         blocked_by: list[str] | None = None,
+        labels: list[str] | None = None,
     ) -> dict:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
@@ -259,10 +274,12 @@ class BoardStore:
                 task_key = f"{proj['key']}-{proj['task_seq']}"
                 await cur.execute(
                     "INSERT INTO c3k_tasks (project_id, goal_id, key, title, description, "
-                    "priority, files, blocked_by) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+                    "priority, files, blocked_by, labels) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
                     (
                         goal["project_id"], goal["id"], task_key, title, description,
                         priority, files or [], [b.upper() for b in (blocked_by or [])],
+                        labels or [],
                     ),
                 )
                 return await cur.fetchone()
@@ -399,6 +416,10 @@ class BoardStore:
                     conn, row["id"], None, None, "note",
                     f"Auto-released to backlog: claim exceeded the {ttl_seconds}s TTL.",
                 )
+                await conn.execute(
+                    "INSERT INTO c3k_events (type, task_key, detail) VALUES (%s,%s,%s)",
+                    ("auto_released", row["key"], f"claim exceeded {ttl_seconds}s TTL"),
+                )
         return [r["key"] for r in released]
 
     async def add_note(self, task_key: str, account_id: int | None, body: str, kind: str = "note") -> dict:
@@ -407,6 +428,30 @@ class BoardStore:
             if not task:
                 raise BoardError(f"unknown task {task_key!r}")
             return await self._add_note(conn, task["id"], None, account_id, kind, body)
+
+    # ---- activity feed ------------------------------------------------------
+    async def record_event(
+        self, type_: str, account_id: int | None = None,
+        task_key: str | None = None, goal_key: str | None = None, detail: str = "",
+    ) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO c3k_events (type, account_id, task_key, goal_key, detail) "
+                "VALUES (%s,%s,%s,%s,%s)",
+                (type_, account_id, task_key, goal_key, (detail or "")[:500]),
+            )
+
+    async def list_events(self, limit: int = 100) -> list[dict]:
+        async with self._pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "SELECT e.id, e.type, e.task_key, e.goal_key, e.detail, e.created_at, "
+                    "a.name AS account FROM c3k_events e "
+                    "LEFT JOIN c3k_accounts a ON a.id = e.account_id "
+                    "ORDER BY e.id DESC LIMIT %s",
+                    (limit,),
+                )
+                return list(await cur.fetchall())
 
     # ---- board view ---------------------------------------------------------
     async def board(self) -> dict:

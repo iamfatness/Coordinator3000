@@ -57,21 +57,31 @@ async def get_task(key: str, request: Request, account: dict = Depends(current_a
 @router.post("/tasks/{key}/claim")
 async def claim(key: str, request: Request, account: dict = Depends(current_account)):
     _require_write(account)
+    board = _board(request)
     try:
-        return await _board(request).claim_task(key, account["id"])
+        result = await board.claim_task(key, account["id"])
     except Conflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await board.record_event("claimed", account["id"], key.upper())
+    if result.get("conflicts"):
+        await board.record_event(
+            "conflict", account["id"], key.upper(), "overlaps " + ", ".join(result["conflicts"])
+        )
+    return result
 
 
 @router.post("/tasks/{key}/notes")
 async def add_note(key: str, body: NoteIn, request: Request, account: dict = Depends(current_account)):
     _require_write(account)
+    board = _board(request)
     try:
-        return await _board(request).add_note(key, account["id"], body.body, body.kind)
+        note = await board.add_note(key, account["id"], body.body, body.kind)
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await board.record_event("note", account["id"], key.upper(), body.body)
+    return note
 
 
 @router.post("/tasks/{key}/submit")
@@ -93,6 +103,7 @@ async def submit(key: str, body: SubmitIn, request: Request, account: dict = Dep
         await board.add_note(key, account["id"], f"Submit failed: {exc}", "note")
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     await board.submit_task(key, result["branch"], result["pr_url"])
+    await board.record_event("submitted", account["id"], key.upper(), result["pr_url"])
     return {"status": "in_review", **result}
 
 
@@ -102,15 +113,20 @@ async def block(key: str, body: BlockIn, request: Request, account: dict = Depen
     board = _board(request)
     try:
         await board.add_note(key, account["id"], f"Blocked: {body.reason}", "note")
-        return await board.set_status(key, "blocked")
+        task = await board.set_status(key, "blocked")
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await board.record_event("blocked", account["id"], key.upper(), body.reason)
+    return task
 
 
 @router.post("/tasks/{key}/release")
 async def release(key: str, request: Request, account: dict = Depends(current_account)):
     _require_write(account)
+    board = _board(request)
     try:
-        return await _board(request).set_status(key, "backlog")
+        task = await board.set_status(key, "backlog")
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await board.record_event("released", account["id"], key.upper())
+    return task

@@ -90,12 +90,21 @@ async def list_goals(request: Request, project_key: str | None = None):
 
 @admin.post("/tasks", status_code=201)
 async def create_task(body: TaskIn, request: Request):
+    board = _board(request)
     try:
-        return await _board(request).create_task(
-            body.goal_key, body.title, body.description, body.priority, body.files, body.blocked_by
+        task = await board.create_task(
+            body.goal_key, body.title, body.description, body.priority,
+            body.files, body.blocked_by, body.labels,
         )
     except BoardError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await board.record_event("task_created", None, task["key"], body.goal_key.upper(), body.title)
+    return task
+
+
+@router.get("/activity")
+async def activity(request: Request, limit: int = 100):
+    return await _board(request).list_events(limit=min(limit, 500))
 
 
 @router.get("/tasks/{key}")
