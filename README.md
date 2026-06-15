@@ -12,6 +12,7 @@
    review, and open a PR with no human in the loop.
 
 The public site (docs + console demo) lives at **https://c3000.iamfatness.us**.
+Roadmap & go-to-live: [`ROADMAP.md`](ROADMAP.md) · deploy guide: [`DEPLOY.md`](DEPLOY.md).
 
 Built on **LangGraph** (stateful graph workflows + Postgres checkpointing),
 deployed as a **FastAPI** app with **background workers** and **GitHub webhooks**.
@@ -225,6 +226,7 @@ All configuration is environment-driven (see `.env.example`). Highlights:
 | `MAX_ITERATIONS` | `4` | Coder⇄Reviewer rounds before shipping |
 | `WORKER_CONCURRENCY` | `2` | Parallel autonomous runs |
 | `REQUIRE_HUMAN_APPROVAL` | `false` | When true, PRs open as drafts |
+| `ADMIN_TOKEN` | — | Guards board-admin + token-minting (`X-Admin-Token`); set before exposing |
 | `SANDBOX_MODE` | `subprocess` | `subprocess` or `docker` code execution |
 | `SANDBOX_TIMEOUT` | `300` | Per-command wall-clock limit (seconds) |
 | `WORKSPACE_ROOT` | `/tmp/coordinator-workspaces` | Where repos are cloned |

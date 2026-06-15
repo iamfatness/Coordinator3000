@@ -1,0 +1,41 @@
+# Fly.io config for the Coordinator3000 app (board + agent API + autonomous engine).
+# One-time setup:
+#   fly launch --no-deploy --copy-config --name coordinator3000
+#   fly postgres create && fly postgres attach <db>      # sets DATABASE_URL
+#   fly secrets set GITHUB_TOKEN=... ADMIN_TOKEN=... GITHUB_WEBHOOK_SECRET=...
+#   fly deploy
+# Custom domain:  fly certs add api.c3000.iamfatness.us
+#                 (then a DNS-only CNAME api.c3000 -> coordinator3000.fly.dev)
+
+app = "coordinator3000"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  WORKSPACE_ROOT = "/tmp/c3000-workspaces"
+  LOG_LEVEL = "INFO"
+  WORKER_CONCURRENCY = "2"
+
+[processes]
+  app = "uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+    method = "get"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

@@ -1,0 +1,48 @@
+name: Deploy app + MCP (Fly.io)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "fly.toml"
+      - "deploy/fly.mcp.toml"
+      - ".github/workflows/deploy-app.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-app
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check Fly token
+        id: cfg
+        shell: bash
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "FLY_API_TOKEN not set — skipping deploy. Add it as a repo secret and run 'fly launch' once for each app." >> "$GITHUB_STEP_SUMMARY"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.cfg.outputs.enabled == 'true'
+
+      - name: Deploy app
+        if: steps.cfg.outputs.enabled == 'true'
+        run: flyctl deploy --remote-only -c fly.toml
+
+      - name: Deploy MCP server
+        if: steps.cfg.outputs.enabled == 'true'
+        run: flyctl deploy --remote-only -c deploy/fly.mcp.toml

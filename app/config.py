@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     worker_concurrency: int = 2
     require_human_approval: bool = False
 
+    # Admin token guarding board-management + token-minting endpoints. If empty,
+    # those endpoints are open (dev only) — set this before exposing publicly.
+    admin_token: str = ""
+
     # ---- Sandbox ------------------------------------------------------------
     sandbox_mode: str = "subprocess"  # "subprocess" | "docker"
     sandbox_timeout: int = 300
