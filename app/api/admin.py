@@ -7,12 +7,17 @@ creation returns a token.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.api.auth import admin_auth
 from app.api.schemas import AccountIn, GoalIn, ProjectIn, TaskIn
 from app.store.board import BoardError
 
+# Mutations + token minting require the admin guard; GETs stay open for the
+# read-only board UI. `admin` carries no prefix — it's merged into `router`
+# (which has the /api/board prefix) at the bottom of this module.
 router = APIRouter(prefix="/api/board", tags=["board"])
+admin = APIRouter(dependencies=[Depends(admin_auth)])
 
 
 def _board(request: Request):
@@ -24,7 +29,7 @@ async def board(request: Request):
     return await _board(request).board()
 
 
-@router.post("/accounts", status_code=201)
+@admin.post("/accounts", status_code=201)
 async def create_account(body: AccountIn, request: Request):
     account, token = await _board(request).create_account(body.name, body.kind)
     # The token is shown exactly once.
@@ -36,7 +41,7 @@ async def list_accounts(request: Request):
     return await _board(request).list_accounts()
 
 
-@router.post("/projects", status_code=201)
+@admin.post("/projects", status_code=201)
 async def create_project(body: ProjectIn, request: Request):
     try:
         return await _board(request).create_project(
@@ -51,7 +56,7 @@ async def list_projects(request: Request):
     return await _board(request).list_projects()
 
 
-@router.post("/goals", status_code=201)
+@admin.post("/goals", status_code=201)
 async def create_goal(body: GoalIn, request: Request):
     try:
         return await _board(request).create_goal(
@@ -66,7 +71,7 @@ async def list_goals(request: Request, project_key: str | None = None):
     return await _board(request).list_goals(project_key)
 
 
-@router.post("/tasks", status_code=201)
+@admin.post("/tasks", status_code=201)
 async def create_task(body: TaskIn, request: Request):
     try:
         return await _board(request).create_task(
@@ -82,3 +87,7 @@ async def get_task(key: str, request: Request):
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
     return task
+
+
+# Merge the admin-guarded mutation routes under the /api/board prefix.
+router.include_router(admin)
