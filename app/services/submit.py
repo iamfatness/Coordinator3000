@@ -53,6 +53,7 @@ async def submit_diff(project: dict, task: dict, account_name: str, diff: str, s
 
         commit_msg = f"{task['key']}: {task['title']}\n\n{summary}\n\nSubmitted via Coordinator3000 by {account_name}."
         sha = await asyncio.to_thread(git_tools.commit_all, workspace, commit_msg)
+        full_sha = await asyncio.to_thread(git_tools.head_sha, workspace)
         await asyncio.to_thread(git_tools.push_branch, workspace, clone_url, branch)
 
         accept = task.get("acceptance") or task.get("goal_acceptance") or ""
@@ -71,6 +72,14 @@ async def submit_diff(project: dict, task: dict, account_name: str, diff: str, s
             )
         )
         pr_url = pr.get("html_url", "")
+        # Best-effort GitHub commit status so the PR shows a Coordinator3000 check.
+        try:
+            await asyncio.to_thread(
+                github.create_commit_status, full_sha, "success",
+                "coordinator3000", f"submitted by {account_name}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("commit status failed: %s", exc)
         log.info("submitted %s -> %s", task["key"], pr_url)
         return {"branch": branch, "pr_url": pr_url, "sha": sha}
     finally:

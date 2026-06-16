@@ -118,6 +118,11 @@ def commit_all(workspace: str, message: str) -> str:
     return _git(workspace, "rev-parse", "--short", "HEAD").strip()
 
 
+def head_sha(workspace: str) -> str:
+    """Return the full SHA of HEAD."""
+    return _git(workspace, "rev-parse", "HEAD").strip()
+
+
 @network_retry()
 def push_branch(workspace: str, clone_url: str, branch: str) -> None:
     """Push the working branch to origin using an ephemeral authenticated URL."""
