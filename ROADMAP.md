@@ -51,7 +51,7 @@ The critical path from "works locally" to "a real chat app moves work forward."
 - ⬜ Durable job queue (Redis/Celery or SQS) replacing the in-process queue.
 - ⬜ Observability — structured logs, tracing, run/cost analytics, dashboards.
 - ⬜ Per-account rate limits, backpressure, connection pooling, horizontal scale.
-- ⬜ CI for the app (lint + tests on PR), a staging environment.
+- 🟡 CI for the app — ✅ `compileall` + offline tests on PRs and `main`; next: lint, integration tests, staging env.
 
 ## Phase 4 — Product & GTM ⬜
 - ⬜ Onboarding + connector-setup wizard, templates/quickstarts.

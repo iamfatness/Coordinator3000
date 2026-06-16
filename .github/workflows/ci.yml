@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: compile + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        # The offline tests only need the config/model layers; compileall covers
+        # the syntax of everything else without importing the heavy LLM stack.
+        run: pip install pytest pydantic pydantic-settings
+
+      - name: Byte-compile all modules
+        run: python -m compileall -q app scripts tests
+
+      - name: Run offline unit tests
+        run: python -m pytest -q

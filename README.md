@@ -323,6 +323,9 @@ This system runs model-authored code. Treat it accordingly:
 make test        # offline unit tests: webhook parsing/verification + path guard
 ```
 
+CI (`.github/workflows/ci.yml`) runs `compileall` + these tests on every PR and
+push to `main`.
+
 ---
 
 ## Deploy notes
