@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     claim_ttl_seconds: int = 1800
     claim_sweep_interval: int = 60
 
+    # Events out — post board activity to a Slack incoming webhook and/or a
+    # generic webhook (Slack-compatible {"text": ...} payload). Empty = disabled.
+    slack_webhook_url: str = ""
+    events_webhook_url: str = ""
+
     # ---- Sandbox ------------------------------------------------------------
     sandbox_mode: str = "subprocess"  # "subprocess" | "docker"
     sandbox_timeout: int = 300

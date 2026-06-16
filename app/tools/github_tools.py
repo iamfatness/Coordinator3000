@@ -96,6 +96,15 @@ class GitHubClient:
         return resp.json()
 
     # ---- Pull requests ------------------------------------------------------
+    def create_commit_status(
+        self, sha: str, state: str, context: str, description: str = ""
+    ) -> None:
+        self._request(
+            "POST",
+            f"/repos/{self.owner}/{self.repo}/statuses/{sha}",
+            json={"state": state, "context": context, "description": description[:140]},
+        )
+
     def create_pull_request(
         self, *, title: str, head: str, base: str, body: str, draft: bool = False
     ) -> dict:

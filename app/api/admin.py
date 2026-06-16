@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.api.auth import admin_auth
 from app.api.schemas import AccountIn, GoalIn, ProjectIn, TaskIn
+from app.services.notify import emit
 from app.store.board import BoardError
 
 # Mutations + token minting require the admin guard; GETs stay open for the
@@ -98,7 +99,7 @@ async def create_task(body: TaskIn, request: Request):
         )
     except BoardError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    await board.record_event("task_created", None, task["key"], body.goal_key.upper(), body.title)
+    await emit(board, "task_created", None, task["key"], body.goal_key.upper(), body.title)
     return task
 
 

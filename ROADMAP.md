@@ -43,7 +43,8 @@ The critical path from "works locally" to "a real chat app moves work forward."
   next: per-file leases, merge-queue awareness, rebase guidance.
 - ✅ Goal/task **definition of done** (acceptance criteria) — surfaced to workers
   via `get_task` and embedded in the PR body. (Autonomous-engine reviewer enforcement: later.)
-- ⬜ Events out (Slack / GitHub checks) and richer webhooks in.
+- 🟡 Events out — ✅ outbound activity webhook (Slack-compatible) + ✅ GitHub
+  commit-status on submitted PRs; next: richer inbound webhooks, per-event filters.
 
 ## Phase 3 — Reliability & scale ⬜
 - ⬜ Durable job queue (Redis/Celery or SQS) replacing the in-process queue.

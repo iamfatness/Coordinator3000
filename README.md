@@ -101,6 +101,10 @@ their work before committing.
 returned to workers from `get_task` (task + `goal_acceptance`) and embedded in the
 pull-request body Coordinator3000 opens, so the quality bar travels with the work.
 
+**Events out:** set `SLACK_WEBHOOK_URL` (or a generic `EVENTS_WEBHOOK_URL`) and board
+activity is posted to it (Slack-compatible `{"text": …}`). Submitted PRs also get a
+`coordinator3000` GitHub commit-status. Both are best-effort and off by default.
+
 ## Project structure
 
 ```

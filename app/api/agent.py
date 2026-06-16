@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.api.auth import current_account
 from app.api.schemas import BlockIn, NoteIn, SubmitIn
+from app.services.notify import emit
 from app.services.submit import SubmitError, submit_diff
 from app.store.board import BoardError, Conflict
 
@@ -64,11 +65,9 @@ async def claim(key: str, request: Request, account: dict = Depends(current_acco
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await board.record_event("claimed", account["id"], key.upper())
+    await emit(board, "claimed", account, key.upper())
     if result.get("conflicts"):
-        await board.record_event(
-            "conflict", account["id"], key.upper(), "overlaps " + ", ".join(result["conflicts"])
-        )
+        await emit(board, "conflict", account, key.upper(), "overlaps " + ", ".join(result["conflicts"]))
     return result
 
 
@@ -80,7 +79,7 @@ async def add_note(key: str, body: NoteIn, request: Request, account: dict = Dep
         note = await board.add_note(key, account["id"], body.body, body.kind)
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await board.record_event("note", account["id"], key.upper(), body.body)
+    await emit(board, "note", account, key.upper(), body.body)
     return note
 
 
@@ -103,7 +102,7 @@ async def submit(key: str, body: SubmitIn, request: Request, account: dict = Dep
         await board.add_note(key, account["id"], f"Submit failed: {exc}", "note")
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     await board.submit_task(key, result["branch"], result["pr_url"])
-    await board.record_event("submitted", account["id"], key.upper(), result["pr_url"])
+    await emit(board, "submitted", account, key.upper(), result["pr_url"])
     return {"status": "in_review", **result}
 
 
@@ -116,7 +115,7 @@ async def block(key: str, body: BlockIn, request: Request, account: dict = Depen
         task = await board.set_status(key, "blocked")
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await board.record_event("blocked", account["id"], key.upper(), body.reason)
+    await emit(board, "blocked", account, key.upper(), body.reason)
     return task
 
 
@@ -128,5 +127,5 @@ async def release(key: str, request: Request, account: dict = Depends(current_ac
         task = await board.set_status(key, "backlog")
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    await board.record_event("released", account["id"], key.upper())
+    await emit(board, "released", account, key.upper())
     return task
