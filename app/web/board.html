@@ -82,6 +82,7 @@
         <button class="btn" data-do="task">Create</button></div>
       <div class="mini"><h4>Agent token</h4>
         <input id="a_name" placeholder="worker name e.g. claude-worker" />
+        <select id="a_role"><option value="member">member (claim/submit)</option><option value="admin">admin (manage board)</option><option value="viewer">viewer (read-only)</option></select>
         <button class="btn" data-do="account">Mint token</button>
         <p class="muted" style="font-size:11px;margin:6px 0 0">Shown once — copy it.</p></div>
     </div>
@@ -189,7 +190,7 @@ document.addEventListener("click",async(e)=>{
     if(act==="project"){await api("POST","/api/board/projects",{key:$("p_key").value,name:$("p_name").value,repo_owner:$("p_owner").value,repo_name:$("p_repo").value});toast("Project created");await load();}
     if(act==="goal"){await api("POST","/api/board/goals",{project_key:$("g_proj").value,key:$("g_key").value,title:$("g_title").value,acceptance:$("g_accept").value});toast("Goal created");await load();}
     if(act==="task"){const files=$("t_files").value.split(",").map(s=>s.trim()).filter(Boolean);const labels=$("t_labels").value.split(",").map(s=>s.trim()).filter(Boolean);await api("POST","/api/board/tasks",{goal_key:$("t_goal").value,title:$("t_title").value,files,labels,acceptance:$("t_accept").value});toast("Task created");await load();}
-    if(act==="account"){const r=await api("POST","/api/board/accounts",{name:$("a_name").value});toast("Token (copy now): "+r.token);}
+    if(act==="account"){const r=await api("POST","/api/board/accounts",{name:$("a_name").value,role:$("a_role").value});toast(`Token (${r.account.role}, copy now): `+r.token);}
   }catch(err){toast("Error: "+err.message);}
 });
 $("goalFilter").addEventListener("change",render);

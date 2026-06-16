@@ -25,8 +25,13 @@ def _board(request: Request):
 
 
 def _require_write(account: dict) -> None:
-    if account.get("scope", "write") != "write":
-        raise HTTPException(status_code=403, detail="this token is read-only")
+    if account.get("role", "member") == "viewer":
+        raise HTTPException(status_code=403, detail="this token is read-only (viewer role)")
+
+
+async def _require_access(board, account: dict, project_id: int) -> None:
+    if not await board.can_access(account, project_id):
+        raise HTTPException(status_code=403, detail="no access to this project")
 
 
 @router.get("/me")
@@ -41,17 +46,22 @@ async def goals(request: Request, project_key: str | None = None, account: dict 
 
 @router.get("/goals/{goal_key}/work")
 async def work(goal_key: str, request: Request, account: dict = Depends(current_account)):
+    board = _board(request)
     try:
-        return await _board(request).list_work(goal_key)
+        result = await board.list_work(goal_key)
     except BoardError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    await _require_access(board, account, result["goal"]["project_id"])
+    return result
 
 
 @router.get("/tasks/{key}")
 async def get_task(key: str, request: Request, account: dict = Depends(current_account)):
-    task = await _board(request).get_task(key)
+    board = _board(request)
+    task = await board.get_task(key)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
+    await _require_access(board, account, task["project_id"])
     return task
 
 
@@ -59,6 +69,10 @@ async def get_task(key: str, request: Request, account: dict = Depends(current_a
 async def claim(key: str, request: Request, account: dict = Depends(current_account)):
     _require_write(account)
     board = _board(request)
+    pre = await board.get_task(key)
+    if not pre:
+        raise HTTPException(status_code=404, detail="task not found")
+    await _require_access(board, account, pre["project_id"])
     try:
         result = await board.claim_task(key, account["id"])
     except Conflict as exc:

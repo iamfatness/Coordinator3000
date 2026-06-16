@@ -11,16 +11,25 @@ from app.config import get_settings
 
 
 async def admin_auth(request: Request) -> None:
-    """Guard board-management + token-minting endpoints via `X-Admin-Token`.
+    """Guard board-management + token-minting endpoints.
 
-    If `ADMIN_TOKEN` is unset the endpoints are open (dev only); set it before
-    exposing the app publicly.
+    Authorized by EITHER an `admin`-role account token (`Authorization: Bearer`)
+    OR the shared `X-Admin-Token`. If `ADMIN_TOKEN` is unset and no admin token is
+    presented, the endpoints are open (dev only) — set it before exposing publicly.
     """
     cfg = get_settings()
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        account = await request.app.state.board.account_by_token(auth[len("Bearer "):].strip())
+        if account and account.get("role") == "admin":
+            return
     if not cfg.admin_token:
         return
     if request.headers.get("X-Admin-Token", "") != cfg.admin_token:
-        raise HTTPException(status_code=401, detail="missing or invalid admin token")
+        raise HTTPException(
+            status_code=401,
+            detail="admin auth required (X-Admin-Token or an admin-role token)",
+        )
 
 
 async def current_account(request: Request) -> dict:
