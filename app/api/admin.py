@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.api.auth import admin_auth
-from app.api.schemas import AccountIn, GoalIn, ProjectIn, TaskIn
+from app.api.schemas import AccountIn, GoalIn, MembershipIn, ProjectIn, TaskIn
 from app.services.notify import emit
 from app.store.board import BoardError
 
@@ -32,9 +32,31 @@ async def board(request: Request):
 
 @admin.post("/accounts", status_code=201)
 async def create_account(body: AccountIn, request: Request):
-    account, token = await _board(request).create_account(body.name, body.kind, body.scope)
+    try:
+        account, token = await _board(request).create_account(body.name, body.kind, body.role)
+    except BoardError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     # The token is shown exactly once.
     return {"account": account, "token": token}
+
+
+@admin.post("/accounts/{account_id}/projects", status_code=201)
+async def add_membership(account_id: int, body: MembershipIn, request: Request):
+    try:
+        return await _board(request).add_membership(account_id, body.project_key)
+    except BoardError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@admin.delete("/accounts/{account_id}/projects/{project_key}")
+async def remove_membership(account_id: int, project_key: str, request: Request):
+    await _board(request).remove_membership(account_id, project_key)
+    return {"status": "removed"}
+
+
+@router.get("/accounts/{account_id}/projects")
+async def list_memberships(account_id: int, request: Request):
+    return await _board(request).list_memberships(account_id)
 
 
 @admin.post("/accounts/{account_id}/revoke")

@@ -106,7 +106,22 @@ _DDL = (
     # Phase 2 — definition of done (acceptance criteria).
     "ALTER TABLE c3k_goals ADD COLUMN IF NOT EXISTS acceptance TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE c3k_tasks ADD COLUMN IF NOT EXISTS acceptance TEXT NOT NULL DEFAULT ''",
+    # Phase 2 — RBAC: account roles + project memberships.
+    "ALTER TABLE c3k_accounts ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member'",
+    """
+    CREATE TABLE IF NOT EXISTS c3k_memberships (
+        id          BIGSERIAL PRIMARY KEY,
+        account_id  BIGINT NOT NULL REFERENCES c3k_accounts(id) ON DELETE CASCADE,
+        project_id  BIGINT NOT NULL REFERENCES c3k_projects(id) ON DELETE CASCADE,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (account_id, project_id)
+    )
+    """,
 )
+
+# Roles, highest privilege first. admin ⊇ member ⊇ viewer.
+ROLES = ("admin", "member", "viewer")
+WRITE_ROLES = ("admin", "member")
 
 
 def _hash_token(token: str) -> str:
@@ -133,15 +148,19 @@ class BoardStore:
 
     # ---- accounts -----------------------------------------------------------
     async def create_account(
-        self, name: str, kind: str = "agent", scope: str = "write"
+        self, name: str, kind: str = "agent", role: str = "member"
     ) -> tuple[dict, str]:
+        if role not in ROLES:
+            raise BoardError(f"invalid role {role!r} (expected admin|member|viewer)")
         token = "c3k_" + secrets.token_urlsafe(28)
+        scope = "read" if role == "viewer" else "write"  # kept for back-compat
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "INSERT INTO c3k_accounts (name, kind, token_sha, scope) "
-                    "VALUES (%s, %s, %s, %s) RETURNING id, name, kind, scope, created_at",
-                    (name, kind, _hash_token(token), scope),
+                    "INSERT INTO c3k_accounts (name, kind, token_sha, scope, role) "
+                    "VALUES (%s, %s, %s, %s, %s) "
+                    "RETURNING id, name, kind, role, scope, created_at",
+                    (name, kind, _hash_token(token), scope, role),
                 )
                 account = await cur.fetchone()
         return account, token
@@ -150,7 +169,7 @@ class BoardStore:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "SELECT id, name, kind, scope, created_at FROM c3k_accounts "
+                    "SELECT id, name, kind, scope, role, created_at FROM c3k_accounts "
                     "WHERE token_sha = %s AND revoked_at IS NULL",
                     (_hash_token(token),),
                 )
@@ -160,10 +179,59 @@ class BoardStore:
         async with self._pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "SELECT id, name, kind, scope, created_at, revoked_at "
+                    "SELECT id, name, kind, role, scope, created_at, revoked_at "
                     "FROM c3k_accounts ORDER BY id"
                 )
                 return list(await cur.fetchall())
+
+    # ---- memberships / access ----------------------------------------------
+    async def add_membership(self, account_id: int, project_key: str) -> dict:
+        async with self._pool.connection() as conn:
+            project = await self._project_by_key(conn, project_key)
+            if not project:
+                raise BoardError(f"unknown project {project_key!r}")
+            await conn.execute(
+                "INSERT INTO c3k_memberships (account_id, project_id) VALUES (%s, %s) "
+                "ON CONFLICT (account_id, project_id) DO NOTHING",
+                (account_id, project["id"]),
+            )
+            return {"account_id": account_id, "project": project["key"]}
+
+    async def remove_membership(self, account_id: int, project_key: str) -> None:
+        async with self._pool.connection() as conn:
+            project = await self._project_by_key(conn, project_key)
+            if project:
+                await conn.execute(
+                    "DELETE FROM c3k_memberships WHERE account_id = %s AND project_id = %s",
+                    (account_id, project["id"]),
+                )
+
+    async def list_memberships(self, account_id: int) -> list[dict]:
+        async with self._pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "SELECT p.key, p.name FROM c3k_memberships m "
+                    "JOIN c3k_projects p ON p.id = m.project_id "
+                    "WHERE m.account_id = %s ORDER BY p.key",
+                    (account_id,),
+                )
+                return list(await cur.fetchall())
+
+    async def account_project_ids(self, account_id: int) -> set[int]:
+        async with self._pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT project_id FROM c3k_memberships WHERE account_id = %s",
+                    (account_id,),
+                )
+                return {r[0] for r in await cur.fetchall()}
+
+    async def can_access(self, account: dict, project_id: int) -> bool:
+        """Admins see all; members are scoped to their projects; no memberships = open."""
+        if account.get("role") == "admin":
+            return True
+        pids = await self.account_project_ids(account["id"])
+        return (not pids) or (project_id in pids)
 
     async def revoke_account(self, account_id: int) -> dict:
         async with self._pool.connection() as conn:

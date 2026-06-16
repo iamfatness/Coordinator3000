@@ -36,7 +36,8 @@ The critical path from "works locally" to "a real chat app moves work forward."
   and submits a diff that becomes a PR. (Dogfood: use C3000 to build C3000.)
 
 ## Phase 2 — Coordination depth & multi-tenant ⬜
-- ⬜ Orgs / accounts / project membership + RBAC.
+- 🟡 Accounts + RBAC — ✅ roles (admin/member/viewer), ✅ per-account admin tokens,
+  ✅ project memberships + scoping; next: orgs, finer per-project roles.
 - 🟡 Richer board — ✅ **activity feed**, ✅ **labels**, ✅ blocked-by surfaced on
   cards; next: dependency graph view, subtasks, comment threads, assignment rules.
 - 🟡 Smarter conflict handling — ✅ **claim TTL + auto-release of stale claims**;

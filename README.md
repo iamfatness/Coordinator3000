@@ -69,14 +69,20 @@ keys. Manage it at **`/board`**, or via the API.
 | `POST /api/board/projects` | `{key, name, repo_owner, repo_name, base_branch?}` |
 | `POST /api/board/goals` | `{project_key, key, title, description?, acceptance?}` |
 | `POST /api/board/tasks` | `{goal_key, title, files?, priority?, blocked_by?, labels?, acceptance?}` |
-| `POST /api/board/accounts` | `{name, scope?}` → a `c3k_...` token (shown once); `scope` = `write` (default) or `read` |
+| `POST /api/board/accounts` | `{name, role?}` → a `c3k_...` token (shown once); `role` = `admin` / `member` (default) / `viewer` |
 | `POST /api/board/accounts/{id}/revoke` · `/rotate` | revoke a token, or rotate it (returns a new one) |
+| `POST /api/board/accounts/{id}/projects` · `DELETE …/{key}` | add / remove a project membership |
+| `GET  /api/board/accounts/{id}/projects` | the account's project memberships |
 | `GET  /api/board` | full board (powers the `/board` UI) |
 | `GET  /api/board/activity` | recent activity feed (task created/claimed/submitted/conflict/…) |
 
-Tokens are scoped (`read` = list/get only; `write` = claim/submit/notes). A claimed
-task with no progress is auto-returned to the backlog after `CLAIM_TTL_SECONDS`
-(default 1800) so a stalled worker can't lock it.
+**Roles & access (RBAC):** each account has a role — `viewer` (list/get only),
+`member` (claim/submit/notes), or `admin` (member + board management; an admin-role
+token authorizes the admin endpoints in place of `X-Admin-Token`). **Project
+memberships** scope a member to specific projects: with memberships set, the account
+can only see/claim its projects; with none, it sees all (backward-compatible).
+A claimed task with no progress is auto-returned to the backlog after
+`CLAIM_TTL_SECONDS` (default 1800) so a stalled worker can't lock it.
 
 **Agent API** (per-account `Authorization: Bearer c3k_...`):
 
